@@ -14,3 +14,5 @@ java -jar target/eu-fin-0.1.0.jar --server.port=18080
 In another terminal with the SAME JWT secret run `npm run test:e2e`. Server and browser must share the same network. Use only an isolated database: the suite edits customer data. This suite has not been executed in the supplied environment because no Chromium binary was available and its download host was blocked.
 
 For an automated disposable run after building and installing Chromium: `bash e2e/run-local.sh`. GitHub Actions has a separate browser job; it has not run yet.
+
+Update: the browser suite subsequently passed in GitHub Actions (16 checks), together with the five-customer HTTP smoke. See docs/CI-RESULTS.md.
