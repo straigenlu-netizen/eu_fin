@@ -11,10 +11,20 @@ spec:
     metadata:
       labels: {app: eu-fin}
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      volumes:
+        - name: temporary
+          emptyDir: {sizeLimit: 256Mi}
       containers:
         - name: bank
           image: eu-fin:0.1.0
           ports: [{containerPort: 8080}]
+          volumeMounts:
+            - {name: temporary, mountPath: /tmp}
           envFrom: [{secretRef: {name: bank-runtime}}]
           resources:
             requests: {cpu: 250m, memory: 512Mi}
@@ -24,6 +34,7 @@ spec:
           livenessProbe:
             httpGet: {path: /actuator/health/liveness, port: 8080}
           securityContext:
+            readOnlyRootFilesystem: true
             runAsNonRoot: true
             runAsUser: 10001
             allowPrivilegeEscalation: false
