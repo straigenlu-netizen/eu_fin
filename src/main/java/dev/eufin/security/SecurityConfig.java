@@ -56,7 +56,9 @@ public class SecurityConfig {
                             r.policy(
                                 org.springframework.security.web.header.writers
                                     .ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER)))
-        .csrf(c -> c.disable())
+        // Keep CSRF protection. Resource-server defaults exempt only requests carrying
+        // an explicit bearer token; cookie-only and anonymous unsafe requests stay protected.
+        .csrf(org.springframework.security.config.Customizer.withDefaults())
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
             a ->

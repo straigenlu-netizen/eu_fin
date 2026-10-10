@@ -177,6 +177,36 @@ class HttpE2ETest {
   }
 
   @Test
+  void csrfRejectsAmbientCredentialsAndPreservesExplicitBearerRequests() throws Exception {
+    String jwt = token("csrf-customer", "bank.pay");
+    for (String method : List.of("POST", "PUT", "PATCH", "DELETE")) {
+      assertThat(request(method, "/api/v1/accounts", null, Map.of(), null).statusCode())
+          .as("Anonymous %s must require CSRF protection", method)
+          .isEqualTo(403);
+      var cookieRequest =
+          HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/accounts"))
+              .header("Cookie", "access_token=" + jwt + "; JSESSIONID=attacker-session")
+              .header("Origin", "https://attacker.example")
+              .header("Content-Type", "application/json")
+              .method(method, HttpRequest.BodyPublishers.ofString("{}"))
+              .build();
+      assertThat(client.send(cookieRequest, HttpResponse.BodyHandlers.ofString()).statusCode())
+          .as("Cookie-only %s must not bypass CSRF protection", method)
+          .isEqualTo(403);
+    }
+    assertThat(request("POST", "/api/v1/accounts?access_token=" + jwt, null, Map.of(), null)
+            .statusCode())
+        .isEqualTo(403);
+    assertThat(request("POST", "/api/v1/accounts", "malformed", Map.of(), null).statusCode())
+        .isEqualTo(401);
+    // Exercise the real decoder and HTTP filter chain, without mock authentication or CSRF tokens.
+    enroll(jwt, "csrf-customer");
+    assertThat(request("GET", "/api/v1/customers/me", jwt, null, null).statusCode())
+        .isEqualTo(200);
+    assertThat(db.queryForObject("select count(*) from account", Integer.class)).isZero();
+  }
+
+  @Test
   void tokenAndInputBoundaries() throws Exception {
     assertThat(request("GET", "/api/v1/accounts", null, null, null).statusCode()).isEqualTo(401);
     assertThat(
@@ -234,7 +264,7 @@ class HttpE2ETest {
     for (String action : List.of("SCREEN", "CLEAR", "SETTLE"))
       ok(request("POST", "/api/v1/ops/payments/" + p + "/transitions", ops, Map.of("action", action), null));
     String path = "/api/v1/payments/" + p + "/sdd-dispute";
-    assertThat(request("POST", path, null, Map.of("allegation", "NO_MANDATE"), null).statusCode()).isEqualTo(401);
+    assertThat(request("POST", path, null, Map.of("allegation", "NO_MANDATE"), null).statusCode()).isEqualTo(403);
     assertThat(request("POST", path, merchant, Map.of("allegation", "NO_MANDATE"), null).statusCode()).isEqualTo(403);
     assertThat(request("POST", path, payer, Map.of("allegation", "INVALID"), null).statusCode()).isEqualTo(400);
     JsonNode claim = ok(request("POST", path, payer, Map.of("allegation", "NO_MANDATE"), null));
