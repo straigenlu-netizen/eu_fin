@@ -1,0 +1,40 @@
+{
+  "assessmentDate": "2026-10-10",
+  "overallStatus": "NOT_CONFIRMED",
+  "productionReady": false,
+  "baseline": {
+    "epcRulebooks": "2025 v1.2",
+    "epcImplementationGuidelines": "2025 v1.0",
+    "java": 21
+  },
+  "evidence": {
+    "isoSchemas": 7,
+    "schemaManifest": "src/main/resources/iso/xsd/sources.json",
+    "ciRun": "https://github.com/straigenlu-netizen/eu_fin/actions/runs/38046761126",
+    "testedCommit": "6f8bc26900769cdedec3f2333a9a4a0d953eabbd",
+    "ciStatus": "PARTIAL_SUCCESS_CODEQL_NOT_CONFIRMED",
+    "testsDiscovered": 64,
+    "testsPassed": 63,
+    "testsSkipped": 1,
+    "failures": 0,
+    "errors": 0,
+    "browserChecksPassed": 16,
+    "jobs": {
+      "verify": "SUCCESS",
+      "browser": "SUCCESS",
+      "dependencies": "SUCCESS",
+      "codeql": "NOT_CONFIRMED"
+    }
+  },
+  "blockingGaps": [
+    "EPC TVS and complete semantic profiles not validated",
+    "No real PSP or CSM integration and acceptance evidence",
+    "Incomplete R-transactions and investigation message flows",
+    "SDD unconditional and unauthorized refund procedures incomplete",
+    "SDD notification, calendars and sequence lifecycle incomplete",
+    "No production VOP or payment SCA dynamic linking",
+    "Incomplete SEPA geographical reachability",
+    "Code scanning disabled for private GitHub repository"
+  ],
+  "report": "docs/SEPA-ISO-CONFORMANCE.md"
+}
