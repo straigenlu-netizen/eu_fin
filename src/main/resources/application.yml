@@ -1,0 +1,53 @@
+spring:
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+  application:
+    name: eu-fin
+  datasource:
+    url: ${DB_URL:jdbc:h2:mem:eufin;MODE=PostgreSQL;DB_CLOSE_DELAY=-1}
+    username: ${DB_USER:sa}
+    password: ${DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        enable.idempotence: true
+        acks: all
+    consumer:
+      group-id: eu-fin-projection
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+bank:
+  data-key: ${BANK_DATA_KEY:}
+  oidc-url: ${BANK_OIDC_URL:}
+  auto-clearing-enabled: ${BANK_AUTO_CLEARING_ENABLED:false}
+  demo-data-enabled: ${BANK_DEMO_DATA_ENABLED:false}
+  jwt-secret: ${BANK_JWT_SECRET:}
+  issuer: ${BANK_ISSUER:eu-fin-lab}
+  audience: eu-fin
+  jwk-set-uri: ${BANK_JWK_SET_URI:}
+  kafka-enabled: ${BANK_KAFKA_ENABLED:false}
+  schema-registry-url: ${SCHEMA_REGISTRY_URL:}
+  streams-enabled: ${BANK_STREAMS_ENABLED:false}
+  scheduler-enabled: ${BANK_SCHEDULER_ENABLED:true}
+server:
+  error:
+    include-message: never

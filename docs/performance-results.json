@@ -1,0 +1,12 @@
+{
+  "durationSeconds" : 0.223342652,
+  "scope" : "local regression, not a production capacity estimate",
+  "samples" : 200,
+  "p95Ms" : 15,
+  "database" : "H2",
+  "p99Ms" : 33,
+  "requestsPerSecond" : 895.485023612955,
+  "concurrency" : 8,
+  "mix" : "80% encrypted profile GET, 20% idempotent payment POST",
+  "p50Ms" : 7
+}

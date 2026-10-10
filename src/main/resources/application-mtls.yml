@@ -1,0 +1,12 @@
+# Opt-in lab profile: requires certificate files generated separately.
+server:
+  port: 8443
+  ssl:
+    enabled: true
+    key-store: ${TLS_KEY_STORE}
+    key-store-password: ${TLS_PASSWORD}
+    key-store-type: PKCS12
+    trust-store: ${TLS_TRUST_STORE}
+    trust-store-password: ${TLS_PASSWORD}
+    trust-store-type: PKCS12
+    client-auth: need

@@ -1,0 +1,18 @@
+CREATE TABLE customer (
+ subject VARCHAR(100) PRIMARY KEY, encrypted_profile TEXT NOT NULL,
+ kyc_status VARCHAR(20) NOT NULL DEFAULT 'PENDING', risk_tier VARCHAR(10) NOT NULL DEFAULT 'LOW',
+ suspended BOOLEAN NOT NULL DEFAULT FALSE, version BIGINT NOT NULL DEFAULT 0,
+ created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+ CHECK(kyc_status IN ('PENDING','VERIFIED','REJECTED')), CHECK(risk_tier IN ('LOW','MEDIUM','HIGH'))
+);
+CREATE TABLE identity_change (
+ id VARCHAR(36) PRIMARY KEY, subject VARCHAR(100) NOT NULL REFERENCES customer(subject),
+ encrypted_identity TEXT NOT NULL, status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+ created_at TIMESTAMP WITH TIME ZONE NOT NULL, reviewed_by VARCHAR(100),
+ CHECK(status IN ('PENDING','APPROVED','REJECTED'))
+);
+CREATE TABLE audit_log (
+ id VARCHAR(36) PRIMARY KEY, actor VARCHAR(100) NOT NULL, subject VARCHAR(100) NOT NULL,
+ action VARCHAR(50) NOT NULL, occurred_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+CREATE INDEX ix_identity_pending ON identity_change(status);

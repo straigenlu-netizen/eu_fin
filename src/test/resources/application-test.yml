@@ -1,0 +1,8 @@
+bank:
+  data-key: dGVzdC1vbmx5LWF1dGhlbnRpY2F0aW9uLWtleS0xMjM=
+  requests-per-minute: 10000
+  jwt-secret: test-only-32-byte-secret-never-production
+  scheduler-enabled: false
+spring:
+  datasource:
+    url: jdbc:h2:mem:tests;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000

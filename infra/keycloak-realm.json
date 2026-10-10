@@ -1,0 +1,317 @@
+{
+  "realm": "eu-fin",
+  "enabled": true,
+  "registrationAllowed": true,
+  "resetPasswordAllowed": false,
+  "bruteForceProtected": true,
+  "failureFactor": 5,
+  "waitIncrementSeconds": 60,
+  "maxFailureWaitSeconds": 900,
+  "passwordPolicy": "length(14) and digits(1) and lowerCase(1) and upperCase(1) and specialChars(1)",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 900,
+  "ssoSessionMaxLifespan": 3600,
+  "sslRequired": "external",
+  "browserFlow": "bank-browser",
+  "roles": {
+    "client": {
+      "eu-fin": [
+        {
+          "name": "bank.pay"
+        },
+        {
+          "name": "bank.read"
+        },
+        {
+          "name": "bank.agent"
+        },
+        {
+          "name": "bank.ops"
+        }
+      ]
+    },
+    "realm": [
+      {
+        "name": "default-roles-eu-fin",
+        "composite": true,
+        "composites": {
+          "client": {
+            "eu-fin": [
+              "bank.pay",
+              "bank.read"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "defaultRoles": [],
+  "clients": [
+    {
+      "clientId": "eu-fin",
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8080/bank/"
+      ],
+      "webOrigins": [
+        "http://localhost:8080"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:8080/bank/"
+      },
+      "defaultClientScopes": [
+        "profile",
+        "roles",
+        "email"
+      ],
+      "protocolMappers": [
+        {
+          "name": "eu-fin-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "eu-fin",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        },
+        {
+          "name": "bank-amr",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-amr-mapper",
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "defaultRole": {
+    "name": "default-roles-eu-fin",
+    "composite": true,
+    "clientRole": false
+  },
+  "authenticationFlows": [
+    {
+      "alias": "bank-browser",
+      "description": "Password and mandatory OTP",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-username-password-form",
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "authenticatorFlow": false,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "password-reference"
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "authenticatorFlow": false,
+          "userSetupAllowed": true,
+          "authenticatorConfig": "otp-reference"
+        }
+      ]
+    }
+  ],
+  "authenticatorConfig": [
+    {
+      "alias": "password-reference",
+      "config": {
+        "default.reference.value": "pwd"
+      }
+    },
+    {
+      "alias": "otp-reference",
+      "config": {
+        "default.reference.value": "mfa"
+      }
+    }
+  ],
+  "users": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "username": "alice",
+      "enabled": true,
+      "email": "alice@example.test",
+      "emailVerified": true,
+      "firstName": "Alice",
+      "lastName": "Demo",
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${DEMO_ALICE_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "clientRoles": {
+        "eu-fin": [
+          "bank.pay",
+          "bank.read"
+        ]
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000002",
+      "username": "bob",
+      "enabled": true,
+      "email": "bob@example.test",
+      "emailVerified": true,
+      "firstName": "Bob",
+      "lastName": "Demo",
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${DEMO_BOB_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "clientRoles": {
+        "eu-fin": [
+          "bank.pay",
+          "bank.read"
+        ]
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000003",
+      "username": "carla",
+      "enabled": true,
+      "email": "carla@example.test",
+      "emailVerified": true,
+      "firstName": "Carla",
+      "lastName": "Demo",
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${DEMO_CARLA_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "clientRoles": {
+        "eu-fin": [
+          "bank.pay",
+          "bank.read"
+        ]
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000004",
+      "username": "daniel",
+      "enabled": true,
+      "email": "daniel@example.test",
+      "emailVerified": true,
+      "firstName": "Daniel",
+      "lastName": "Demo",
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${DEMO_DANIEL_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "clientRoles": {
+        "eu-fin": [
+          "bank.pay",
+          "bank.read"
+        ]
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000005",
+      "username": "eva",
+      "enabled": true,
+      "email": "eva@example.test",
+      "emailVerified": true,
+      "firstName": "Eva",
+      "lastName": "Demo",
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${DEMO_EVA_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "clientRoles": {
+        "eu-fin": [
+          "bank.pay",
+          "bank.read"
+        ]
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000006",
+      "username": "agent",
+      "enabled": true,
+      "email": "agent@example.test",
+      "emailVerified": true,
+      "firstName": "Agent",
+      "lastName": "Demo",
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${DEMO_AGENT_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "clientRoles": {
+        "eu-fin": [
+          "bank.agent"
+        ]
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000007",
+      "username": "operator",
+      "enabled": true,
+      "email": "operator@example.test",
+      "emailVerified": true,
+      "firstName": "Operator",
+      "lastName": "Demo",
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${DEMO_OPERATOR_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "clientRoles": {
+        "eu-fin": [
+          "bank.ops",
+          "bank.pay"
+        ]
+      }
+    }
+  ]
+}
