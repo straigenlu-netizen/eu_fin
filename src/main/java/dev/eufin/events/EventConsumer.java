@@ -46,7 +46,7 @@ public class EventConsumer {
       if (db.queryForList("select id from payment where id=? for update", payment).isEmpty())
         throw new IllegalArgumentException("Unknown payment");
       if (db.queryForObject("select count(*) from inbox where id=?", Long.class, id) > 0) return;
-      db.update("insert into inbox values(?,?)", id, clock.instant());
+      db.update("insert into inbox values(?,?)", id, clock.instant().atOffset(java.time.ZoneOffset.UTC));
       if (db.queryForObject("select count(*) from payment_view where id=?", Long.class, payment)
           == 0) db.update("insert into payment_view values(?,?,?)", payment, status, seq);
       else

@@ -58,7 +58,7 @@ public class CustomerService {
         actor,
         subject,
         action,
-        clock.instant());
+        clock.instant().atOffset(java.time.ZoneOffset.UTC));
   }
 
   @Transactional
@@ -69,7 +69,7 @@ public class CustomerService {
         "insert into customer(subject,encrypted_profile,created_at) values(?,?,?)",
         subject,
         encode(subject, request),
-        clock.instant());
+        clock.instant().atOffset(java.time.ZoneOffset.UTC));
     audit(subject, subject, "CUSTOMER_REGISTERED");
     return self(subject);
   }
@@ -130,7 +130,7 @@ public class CustomerService {
         id,
         subject,
         encode(subject, request.identity()),
-        clock.instant());
+        clock.instant().atOffset(java.time.ZoneOffset.UTC));
     audit(subject, subject, "IDENTITY_CHANGE_REQUESTED");
     return id;
   }

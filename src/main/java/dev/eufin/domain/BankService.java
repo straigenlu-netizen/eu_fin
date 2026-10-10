@@ -236,8 +236,8 @@ public class BankService {
         req.mandateId(),
         "RECEIVED",
         route,
-        now,
-        deadline);
+        now.atOffset(ZoneOffset.UTC),
+        deadline == null ? null : deadline.atOffset(ZoneOffset.UTC));
     db.update("update account set held=held+?,version=version+1 where id=?", amount, debtor.id());
     event(id, "RECEIVED", null);
     change(id, "VALIDATED", null);
@@ -300,7 +300,7 @@ public class BankService {
             p.amount(),
             p.creditorId());
         journal("PAY:" + id, p.debtorId(), p.creditorId(), p.amount());
-        db.update("update payment set settled_at=? where id=?", clock.instant(), id);
+        db.update("update payment set settled_at=? where id=?", clock.instant().atOffset(ZoneOffset.UTC), id);
         change(id, "SETTLED", null);
       }
       case "REJECT" -> {
@@ -369,14 +369,14 @@ public class BankService {
         booking,
         from,
         amount.negate(),
-        now);
+        now.atOffset(ZoneOffset.UTC));
     db.update(
         "insert into ledger(id,booking_id,account_id,delta,booked_at) values(?,?,?,?,?)",
         id(),
         booking,
         to,
         amount,
-        now);
+        now.atOffset(ZoneOffset.UTC));
   }
 
   private void change(String id, String status, String reason) {
@@ -400,7 +400,7 @@ public class BankService {
         seq,
         status,
         reason,
-        now);
+        now.atOffset(ZoneOffset.UTC));
     try {
       String payload =
           json.writeValueAsString(
@@ -477,7 +477,7 @@ public class BankService {
       throw BankError.invalid("INVALID_CONSENT_EXPIRY");
     String id = id();
     db.update(
-        "insert into consent values(?,?,?,?,?)", id, a.id(), req.tpp(), req.expiresAt(), true);
+        "insert into consent values(?,?,?,?,?)", id, a.id(), req.tpp(), req.expiresAt().atOffset(ZoneOffset.UTC), true);
     return id;
   }
 
@@ -496,7 +496,7 @@ public class BankService {
             "select account_id from consent where id=? and tpp=? and active=true and expires_at>?",
             consent,
             tpp,
-            clock.instant());
+            clock.instant().atOffset(ZoneOffset.UTC));
     if (rows.isEmpty()) throw new BankError("INVALID_CONSENT", 403);
     return loadAccount(rows.get(0).get("account_id").toString(), false);
   }
@@ -531,7 +531,7 @@ public class BankService {
             "select id from payment where deadline<=? and status in"
                 + " ('VALIDATED','ROUTED','CLEARED')",
             String.class,
-            clock.instant());
+            clock.instant().atOffset(ZoneOffset.UTC));
     for (String id : ids) transition(new Actor("scheduler", true), id, "TIMEOUT");
     return ids.size();
   }
