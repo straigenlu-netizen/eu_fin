@@ -19,11 +19,13 @@ import org.springframework.security.oauth2.jwt.*;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 @ActiveProfiles("test")
 class HttpE2ETest {
   @LocalServerPort int port;
   @Autowired ObjectMapper json;
   @Autowired JdbcTemplate db;
+  @Autowired org.springframework.test.web.servlet.MockMvc mvc;
   final HttpClient client = HttpClient.newHttpClient();
 
   String token(String subject, String scopes, Instant expires, String audience) {
@@ -182,7 +184,7 @@ class HttpE2ETest {
     for (String method : List.of("POST", "PUT", "PATCH", "DELETE")) {
       assertThat(request(method, "/api/v1/accounts", null, Map.of(), null).statusCode())
           .as("Anonymous %s must require CSRF protection", method)
-          .isEqualTo(403);
+          .isEqualTo(401);
       var cookieRequest =
           HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/accounts"))
               .header("Cookie", "access_token=" + jwt + "; JSESSIONID=attacker-session")
@@ -192,11 +194,11 @@ class HttpE2ETest {
               .build();
       assertThat(client.send(cookieRequest, HttpResponse.BodyHandlers.ofString()).statusCode())
           .as("Cookie-only %s must not bypass CSRF protection", method)
-          .isEqualTo(403);
+          .isEqualTo(401);
     }
     assertThat(request("POST", "/api/v1/accounts?access_token=" + jwt, null, Map.of(), null)
             .statusCode())
-        .isEqualTo(403);
+        .isEqualTo(401);
     assertThat(request("POST", "/api/v1/accounts", "malformed", Map.of(), null).statusCode())
         .isEqualTo(401);
     // Exercise the real decoder and HTTP filter chain, without mock authentication or CSRF tokens.
@@ -204,6 +206,30 @@ class HttpE2ETest {
     assertThat(request("GET", "/api/v1/customers/me", jwt, null, null).statusCode())
         .isEqualTo(200);
     assertThat(db.queryForObject("select count(*) from account", Integer.class)).isZero();
+  }
+
+  @Test
+  void authenticatedRequestsWithoutBearerHeadersRequireCsrfTokens() throws Exception {
+    var authentication = org.springframework.security.test.web.servlet.request
+        .SecurityMockMvcRequestPostProcessors.jwt();
+    var post = org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+        .post("/api/public/auth-config");
+    mvc.perform(post.with(authentication))
+        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
+            .isForbidden());
+    mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .post("/api/public/auth-config").with(authentication)
+            .with(org.springframework.security.test.web.servlet.request
+                .SecurityMockMvcRequestPostProcessors.csrf().useInvalidToken()))
+        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
+            .isForbidden());
+    // A valid CSRF token passes the filter and reaches MVC (this endpoint supports GET only).
+    mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .post("/api/public/auth-config").with(authentication)
+            .with(org.springframework.security.test.web.servlet.request
+                .SecurityMockMvcRequestPostProcessors.csrf()))
+        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
+            .isMethodNotAllowed());
   }
 
   @Test
@@ -264,7 +290,7 @@ class HttpE2ETest {
     for (String action : List.of("SCREEN", "CLEAR", "SETTLE"))
       ok(request("POST", "/api/v1/ops/payments/" + p + "/transitions", ops, Map.of("action", action), null));
     String path = "/api/v1/payments/" + p + "/sdd-dispute";
-    assertThat(request("POST", path, null, Map.of("allegation", "NO_MANDATE"), null).statusCode()).isEqualTo(403);
+    assertThat(request("POST", path, null, Map.of("allegation", "NO_MANDATE"), null).statusCode()).isEqualTo(401);
     assertThat(request("POST", path, merchant, Map.of("allegation", "NO_MANDATE"), null).statusCode()).isEqualTo(403);
     assertThat(request("POST", path, payer, Map.of("allegation", "INVALID"), null).statusCode()).isEqualTo(400);
     JsonNode claim = ok(request("POST", path, payer, Map.of("allegation", "NO_MANDATE"), null));
