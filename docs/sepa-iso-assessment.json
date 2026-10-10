@@ -12,7 +12,7 @@
     "schemaManifest": "src/main/resources/iso/xsd/sources.json",
     "ciRun": "https://github.com/straigenlu-netizen/eu_fin/actions/runs/38046761126",
     "testedCommit": "6f8bc26900769cdedec3f2333a9a4a0d953eabbd",
-    "ciStatus": "PARTIAL_SUCCESS_CODEQL_NOT_CONFIRMED",
+    "ciStatus": "PARTIAL_SUCCESS_CODEQL_CONFIGURATION_FAILURE",
     "testsDiscovered": 64,
     "testsPassed": 63,
     "testsSkipped": 1,
@@ -23,7 +23,7 @@
       "verify": "SUCCESS",
       "browser": "SUCCESS",
       "dependencies": "SUCCESS",
-      "codeql": "NOT_CONFIRMED"
+      "codeql": "CONFIGURATION_FAILURE_CODE_SCANNING_DISABLED"
     }
   },
   "blockingGaps": [

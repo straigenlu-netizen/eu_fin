@@ -10,7 +10,7 @@
 | Playwright / HTTP demo smoke | Успешно: 16 браузерных проверок и пять демо-клиентов |
 | Нагрузочная регрессия / mTLS / security e2e | Успешно; это не промышленная оценка ёмкости или независимый pentest |
 | Trivy HIGH/CRITICAL vuln/secret/misconfig | Успешно |
-| CodeQL | Успех не подтверждён. Предыдущий прогон завершился configuration error: Code scanning is not enabled for this repository. Текущий статус нужно смотреть в Actions |
+| CodeQL | Завершился ошибкой конфигурации: Code scanning is not enabled for this repository. Code scanning для приватного репозитория отключён; проверка не засчитывается |
 
 Новые проверки: настоящие сохранённые реквизиты мандата, отказ экспорта без них, отказ неполных/будущих реквизитов, неизменная millisecond acceptance timestamp SCT Inst, идентификаторы со слешами, граница имени 70 символов, контрольные суммы семи ISO XSD.
 
