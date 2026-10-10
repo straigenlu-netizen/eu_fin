@@ -4,7 +4,7 @@ A project or test suite cannot establish a promise of maximum security. This imp
 
 ## Implemented controls
 
-- JWT signature, issuer, audience, expiry and subject validation. OIDC mode uses JWKS; HMAC is reserved for the separate local lab scenario.
+- JWT signature, issuer, audience, expiry and subject validation. The `exp` claim is mandatory: a correctly signed token without an expiration is rejected. Default Spring timestamp validation checks expiry and `nbf` with its clock-skew allowance. JwtValidationTest exercises real signatures and missing/expired/future validity claims, issuer, audience and subject boundaries. OIDC mode uses JWKS; HMAC is reserved for the separate local lab scenario.
 - Backend ownership checks for accounts, payments and profiles. Hiding UI controls is not authorisation. Staff and operators have separate roles.
 - Staff/ops require `amr=mfa`. Keycloak requires password plus OTP; its AMR mapper reports performed methods. A trusted issuer must supply the signed claim; the text `mfa` alone does not establish IdP quality.
 - Profiles and proposed corrections use AES-256-GCM with random nonces, integrity checks and subject AAD. Moving ciphertext between customers fails. Missing or weak keys block startup.

@@ -31,7 +31,8 @@ public class SecurityConfig {
     }
     OAuth2TokenValidator<Jwt> aud =
         jwt ->
-            jwt.getAudience().contains(audience)
+            jwt.getExpiresAt() != null
+                    && jwt.getAudience().contains(audience)
                     && jwt.getSubject() != null
                     && !jwt.getSubject().isBlank()
                 ? OAuth2TokenValidatorResult.success()
