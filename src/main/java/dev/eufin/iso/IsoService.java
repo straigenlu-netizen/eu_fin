@@ -241,7 +241,11 @@ public class IsoService {
   }
 
   private String sequence(Payment payment) {
-    return db.queryForObject("select sequence_type from mandate where id=?", String.class, payment.mandateId());
+    return db.queryForObject("select collection_sequence from payment where id=?", String.class, payment.id());
+  }
+
+  private LocalDate collectionDate(Payment payment) {
+    return db.queryForObject("select collection_date from payment where id=?", java.sql.Date.class, payment.id()).toLocalDate();
   }
 
   private String header(String id, int count) {
@@ -360,7 +364,7 @@ public class IsoService {
                 + "</GrpHdr><PmtInf>"
                 + tag("PmtInfId", shortId(id))
                 + "<PmtMtd>DD</PmtMtd><PmtTpInf><SvcLvl><Cd>SEPA</Cd></SvcLvl><LclInstrm><Cd>CORE</Cd></LclInstrm><SeqTp>" + escape(sequence(p)) + "</SeqTp></PmtTpInf>"
-                + tag("ReqdColltnDt", LocalDate.now(clock))
+                + tag("ReqdColltnDt", collectionDate(p))
                 + party("Cdtr", c.name())
                 + account("CdtrAcct", c.iban())
                 + agent("CdtrAgt")
@@ -389,9 +393,9 @@ public class IsoService {
                 + " Ccy=\"EUR\">"
                 + amount
                 + "</IntrBkSttlmAmt>"
-                + tag("IntrBkSttlmDt", LocalDate.now(clock))
+                + tag("IntrBkSttlmDt", collectionDate(p))
                 + "<ChrgBr>SLEV</ChrgBr>"
-                + tag("ReqdColltnDt", LocalDate.now(clock))
+                + tag("ReqdColltnDt", collectionDate(p))
                 + "<DrctDbtTx>"
                 + mandateXml(p)
                 + "</DrctDbtTx>"

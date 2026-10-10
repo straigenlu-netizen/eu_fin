@@ -1,0 +1,37 @@
+rules:
+  - id: bank-no-weak-digest
+    languages: [java]
+    severity: ERROR
+    message: Use SHA-256 or stronger; password storage requires a dedicated password KDF.
+    pattern-either:
+      - pattern: MessageDigest.getInstance("MD5")
+      - pattern: MessageDigest.getInstance("SHA-1")
+  - id: bank-no-ecb-cipher
+    languages: [java]
+    severity: ERROR
+    message: Use authenticated encryption with unique nonces, such as AES/GCM.
+    pattern: Cipher.getInstance("AES/ECB/PKCS5Padding")
+  - id: bank-no-native-deserialization
+    languages: [java]
+    severity: ERROR
+    message: Native Java deserialization is prohibited in the bank application.
+    pattern: new ObjectInputStream(...)
+  - id: bank-no-process-execution
+    languages: [java]
+    severity: ERROR
+    message: Bank request processing must not execute operating system commands.
+    pattern-either:
+      - pattern: Runtime.getRuntime().exec(...)
+      - pattern: new ProcessBuilder(...)
+  - id: bank-no-tls-hostname-bypass
+    languages: [java]
+    severity: ERROR
+    message: TLS hostname validation must remain enabled.
+    pattern: HttpsURLConnection.setDefaultHostnameVerifier(...)
+  - id: bank-no-external-xml-entities
+    languages: [java]
+    severity: ERROR
+    message: External XML entities must remain disabled to prevent XXE.
+    pattern-either:
+      - pattern: $F.setFeature("http://xml.org/sax/features/external-general-entities", true)
+      - pattern: $F.setFeature("http://xml.org/sax/features/external-parameter-entities", true)

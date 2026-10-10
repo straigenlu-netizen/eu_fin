@@ -263,6 +263,91 @@ class BankIntegrationTest {
     }
   }
 
+  String typedMandate(String sequence) {
+    return bank.mandate(alice, new NewMandate(a.id(), b.id(), LocalDate.of(2031, 1, 1),
+        new BigDecimal("20"), "LIFECYCLE", "DE98ZZZ09999999999", LocalDate.of(2026, 9, 1), sequence));
+  }
+
+  @Test
+  void oneOffRejectCanBeCorrectedButSettledOrRefundedMandateCannotBeReused() {
+    String m = typedMandate("OOFF");
+    Payment first = bank.initiate(bob, "first", request("SDD_CORE", m));
+    assertThat(bank.initiate(bob, "first", request("SDD_CORE", m)).id()).isEqualTo(first.id());
+    assertThatThrownBy(() -> bank.initiate(bob, "second", request("SDD_CORE", m))).hasMessage("MANDATE_ALREADY_USED");
+    bank.transition(ops, first.id(), "REJECT");
+    Payment corrected = settle(bank.initiate(bob, "corrected", request("SDD_CORE", m)));
+    assertThatThrownBy(() -> bank.initiate(bob, "third", request("SDD_CORE", m))).hasMessage("MANDATE_ALREADY_USED");
+    bank.refund(alice, corrected.id());
+    assertThatThrownBy(() -> bank.initiate(bob, "fourth", request("SDD_CORE", m))).hasMessage("MANDATE_ALREADY_USED");
+  }
+
+  @Test
+  void concurrentOneOffCollectionsReserveFundsOnlyOnce() throws Exception {
+    String m = typedMandate("OOFF");
+    ExecutorService pool = Executors.newFixedThreadPool(2);
+    try {
+      var results = pool.invokeAll(List.<Callable<String>>of(
+          () -> { try { return bank.initiate(bob, "race-one", request("SDD_CORE", m)).status(); } catch (BankError e) { return e.code; } },
+          () -> { try { return bank.initiate(bob, "race-two", request("SDD_CORE", m)).status(); } catch (BankError e) { return e.code; } }));
+      assertThat(List.of(results.get(0).get(), results.get(1).get())).containsExactlyInAnyOrder("VALIDATED", "MANDATE_ALREADY_USED");
+      assertThat(bank.account(alice, a.id()).held()).isEqualByComparingTo("10");
+      assertThat(db.queryForObject("select count(*) from payment", Integer.class)).isEqualTo(1);
+    } finally { pool.shutdownNow(); }
+  }
+
+  @Test
+  void mandateRevokedAfterClearingRejectsBeforeDebitAndReleasesHold() {
+    String m = typedMandate("RCUR");
+    Payment p = bank.initiate(bob, "pending", request("SDD_CORE", m));
+    bank.transition(ops, p.id(), "SCREEN");
+    bank.transition(ops, p.id(), "CLEAR");
+    bank.revokeMandate(alice, m);
+    Payment rejected = bank.transition(ops, p.id(), "SETTLE");
+    assertThat(rejected.status()).isEqualTo("REJECTED");
+    assertThat(rejected.reason()).isEqualTo("MD01");
+    assertThat(bank.account(alice, a.id()).held()).isZero();
+    assertThat(bank.account(alice, a.id()).balance()).isEqualByComparingTo("100");
+    assertThat(bank.account(bob, b.id()).balance()).isZero();
+    assertThat(db.queryForObject("select count(*) from ledger where booking_id=?", Integer.class, "PAY:" + p.id())).isZero();
+    assertThatThrownBy(() -> bank.transition(ops, p.id(), "SETTLE")).hasMessage("INVALID_TRANSITION");
+  }
+
+  @Test
+  void operatorsCannotCreateOrRevokeSomeoneElsesMandate() {
+    assertThatThrownBy(() -> bank.mandate(ops, new NewMandate(a.id(), b.id(), LocalDate.of(2027, 1, 1), new BigDecimal("20"))))
+        .hasMessage("FORBIDDEN");
+    String m = typedMandate("RCUR");
+    assertThatThrownBy(() -> bank.revokeMandate(ops, m)).hasMessage("FORBIDDEN");
+    assertThat(bank.initiate(bob, "still-valid", request("SDD_CORE", m)).status()).isEqualTo("VALIDATED");
+  }
+
+  @Test
+  void recurrentMandateSnapshotsSequenceAndDatesEvenAfterClockAdvances() {
+    String m = typedMandate("FRST");
+    Payment first = bank.initiate(bob, "first", request("SDD_CORE", m));
+    when(clock.instant()).thenReturn(now.plus(Duration.ofDays(1)));
+    Payment second = bank.initiate(bob, "second", request("SDD_CORE", m));
+    for (String type : List.of("pain008", "pacs003")) {
+      assertThat(iso.export(alice, first.id(), type)).contains("<SeqTp>FRST</SeqTp>", "<ReqdColltnDt>2026-10-10</ReqdColltnDt>");
+      assertThat(iso.export(alice, second.id(), type)).contains("<SeqTp>RCUR</SeqTp>", "<ReqdColltnDt>2026-10-11</ReqdColltnDt>");
+    }
+  }
+
+  @Test
+  void inactivityUsesCalendarMonthsFromLatestPresentationIncludingRejectedCollection() {
+    String m = typedMandate("RCUR");
+    Payment p = bank.initiate(bob, "first", request("SDD_CORE", m));
+    bank.transition(ops, p.id(), "REJECT");
+    when(clock.instant()).thenReturn(Instant.parse("2029-10-10T12:00:00Z"));
+    assertThatThrownBy(() -> bank.initiate(bob, "expired", request("SDD_CORE", m))).hasMessage("MANDATE_INACTIVE");
+    assertThat(bank.account(alice, a.id()).held()).isZero();
+    when(clock.instant()).thenReturn(Instant.parse("2029-10-09T12:00:00Z"));
+    Payment next = bank.initiate(bob, "before-expiry", request("SDD_CORE", m));
+    bank.transition(ops, next.id(), "REJECT");
+    when(clock.instant()).thenReturn(Instant.parse("2029-10-10T12:00:00Z"));
+    assertThat(bank.initiate(bob, "renewed", request("SDD_CORE", m)).status()).isEqualTo("VALIDATED");
+  }
+
   @Test
   void incompleteOrFutureDatedMandateMetadataIsRejected() {
     assertThatThrownBy(() -> bank.mandate(alice, new NewMandate(a.id(), b.id(), LocalDate.of(2027, 1, 1),

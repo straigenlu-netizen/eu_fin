@@ -216,6 +216,15 @@ public class BankService {
       if (mandates.isEmpty()
           || ((BigDecimal) mandates.get(0).get("max_amount")).compareTo(amount) < 0)
         throw BankError.invalid("INVALID_MANDATE");
+      var mandate = mandates.get(0);
+      Object last = mandate.get("last_presented_date");
+      if (last != null && !LocalDate.now(clock).isBefore(((java.sql.Date) last).toLocalDate().plusMonths(36)))
+        throw BankError.invalid("MANDATE_INACTIVE");
+      String sequence = (String) mandate.get("sequence_type");
+      if (Set.of("OOFF", "FNAL").contains(sequence == null ? "" : sequence)) {
+        Integer used = db.queryForObject("select count(*) from payment where mandate_id=? and status<>'REJECTED'", Integer.class, req.mandateId());
+        if (used != null && used > 0) throw new BankError("MANDATE_ALREADY_USED", 409);
+      }
     } else if (req.mandateId() != null) throw BankError.invalid("UNEXPECTED_MANDATE");
     if (debtor.available().compareTo(amount) < 0) throw BankError.invalid("INSUFFICIENT_FUNDS");
     Instant now = clock.instant();
@@ -239,6 +248,12 @@ public class BankService {
         route,
         now.atOffset(ZoneOffset.UTC),
         deadline == null ? null : deadline.atOffset(ZoneOffset.UTC));
+    if (directDebit) {
+      db.update("update payment set collection_date=?,collection_sequence=(select sequence_type from mandate where id=?) where id=?",
+          java.sql.Date.valueOf(LocalDate.now(clock)), req.mandateId(), id);
+      db.update("update mandate set last_presented_date=?,sequence_type=case when sequence_type='FRST' then 'RCUR' else sequence_type end where id=?",
+          java.sql.Date.valueOf(LocalDate.now(clock)), req.mandateId());
+    }
     db.update("update account set held=held+?,version=version+1 where id=?", amount, debtor.id());
     event(id, "RECEIVED", null);
     change(id, "VALIDATED", null);
@@ -271,6 +286,16 @@ public class BankService {
       release(p);
       change(id, "TIMED_OUT", "AB05");
       return loadPayment(id, false);
+    }
+    if (p.scheme().equals("SDD_CORE") && Set.of("SCREEN", "CLEAR", "SETTLE").contains(action)
+        && Set.of("VALIDATED", "ROUTED", "CLEARED").contains(p.status())) {
+      var mandates = db.queryForList("select * from mandate where id=? for update", p.mandateId());
+      if (mandates.isEmpty() || !Boolean.TRUE.equals(mandates.get(0).get("active"))
+          || ((java.sql.Date) mandates.get(0).get("valid_until")).toLocalDate().isBefore(LocalDate.now(clock))) {
+        release(p);
+        change(id, "REJECTED", "MD01");
+        return loadPayment(id, false);
+      }
     }
     switch (action) {
       case "SCREEN" -> {
@@ -587,7 +612,7 @@ public class BankService {
   @Transactional
   public String mandate(Actor actor, NewMandate req) {
     lockAccounts(req.debtorId(), req.creditorId());
-    own(actor, loadAccount(req.debtorId(), false));
+    if (!loadAccount(req.debtorId(), false).ownerId().equals(actor.subject())) throw new BankError("FORBIDDEN", 403);
     if (req.validUntil().isBefore(LocalDate.now(clock))) throw BankError.invalid("MANDATE_EXPIRED");
     boolean metadata = req.mandateReference() != null || req.creditorIdentifier() != null
         || req.signatureDate() != null || req.sequenceType() != null;
@@ -618,7 +643,7 @@ public class BankService {
     if (rows.isEmpty()) throw new BankError("MANDATE_NOT_FOUND", 404);
     String debtor = rows.get(0).get("debtor_id").toString();
     loadAccount(debtor, true);
-    own(actor, loadAccount(debtor, false));
+    if (!loadAccount(debtor, false).ownerId().equals(actor.subject())) throw new BankError("FORBIDDEN", 403);
     db.update("update mandate set active=false where id=?", id);
   }
 

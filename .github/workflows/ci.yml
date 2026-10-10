@@ -1,5 +1,5 @@
 name: Bank verification
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
 jobs:
@@ -22,7 +22,28 @@ jobs:
             target/site/jacoco
             target/performance-results.json
             target/sdd-performance-results.json
+  sast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install semgrep==1.180.0
+      - name: Verify security rules against positive and negative fixtures
+        run: semgrep --test security/semgrep
+      - name: Scan bank source and fail on findings
+        run: semgrep scan --config security/semgrep/java.yml --error --strict --metrics off --sarif --output semgrep.sarif src/main/java
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sast-sarif
+          path: semgrep.sarif
+          if-no-files-found: warn
   codeql:
+    # Requires Code Security entitlement and Code Scanning enabled in repository settings.
+    if: ${{ vars.CODEQL_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
