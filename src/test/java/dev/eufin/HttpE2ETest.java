@@ -19,13 +19,12 @@ import org.springframework.security.oauth2.jwt.*;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 @ActiveProfiles("test")
 class HttpE2ETest {
   @LocalServerPort int port;
   @Autowired ObjectMapper json;
   @Autowired JdbcTemplate db;
-  @Autowired org.springframework.test.web.servlet.MockMvc mvc;
+  @Autowired org.springframework.web.context.WebApplicationContext webContext;
   final HttpClient client = HttpClient.newHttpClient();
 
   String token(String subject, String scopes, Instant expires, String audience) {
@@ -210,6 +209,11 @@ class HttpE2ETest {
 
   @Test
   void authenticatedRequestsWithoutBearerHeadersRequireCsrfTokens() throws Exception {
+    var mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders
+        .webAppContextSetup(webContext)
+        .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers
+            .springSecurity())
+        .build();
     var authentication = org.springframework.security.test.web.servlet.request
         .SecurityMockMvcRequestPostProcessors.jwt();
     var post = org.springframework.test.web.servlet.request.MockMvcRequestBuilders
