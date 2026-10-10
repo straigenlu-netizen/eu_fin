@@ -42,8 +42,8 @@ jobs:
           path: semgrep.sarif
           if-no-files-found: warn
   codeql:
-    # Requires Code Security entitlement and Code Scanning enabled in repository settings.
-    if: ${{ vars.CODEQL_ENABLED == 'true' }}
+    # Public repositories run automatically; private repositories require Code Security and explicit opt-in.
+    if: ${{ github.event.repository.private == false || vars.CODEQL_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
