@@ -2,7 +2,7 @@
 
 | Требование | Что можно показать | Что остаётся |
 |---|---|---|
-| Java 17/21, Spring Boot 3 | Реальная Java 17 сборка, конфигурация CI 17/21, REST, DI | Java 17/21 CI прошёл |
+| Java 21, Spring Boot 3 | Сборка release 21, CI JDK 21, REST, DI | Текущий проект требует только Java 21; предыдущий прогон JDK 21 прошёл |
 | Spring Data/Hibernate/JPA | Read model через JPA; command SQL + Spring transactions | Другие database vendors не проверены |
 | OAuth2/OIDC/JWT/mTLS | Resource server, PKCE UI, Keycloak config, реальные JWT/HTTPS tests | Полный Keycloak login здесь не прогонялся |
 | Microservices, gateway, circuit breaker | Границы модулей, nginx template, circuit breaker | Независимые сервисы и gateway deployment отсутствуют |

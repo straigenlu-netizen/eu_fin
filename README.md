@@ -19,11 +19,11 @@ docker compose -f compose.yml -f compose.oidc.yml up --build
 
 В учебном кабинете IBAN нового счёта вводится вручную: это инструмент эксперимента, а не промышленный процесс выдачи IBAN. Для платежа Alice → Bob указать `NL91ABNA0417164300`, имя `Bob Example`, сумму и уникальное назначение. Локальный worker моделирует screening, clearing и settlement. Стандартные и мгновенные переводы проходят внутри единого учебного ledger.
 
-Полный Compose-стек здесь подготовлен, но не запускался в среде разработки: Docker недоступен. PostgreSQL/Kafka, JDK 17/21 и браузерные тесты затем успешно выполнены в GitHub Actions. Актуальные результаты: [CI-RESULTS.md](docs/CI-RESULTS.md); первоначальный локальный [отчёт](docs/VERIFICATION.md).
+Полный Compose-стек здесь подготовлен, но не запускался в среде разработки: Docker недоступен. PostgreSQL/Kafka, JDK 21 и браузерные тесты затем успешно выполнены в GitHub Actions. Актуальные результаты: [CI-RESULTS.md](docs/CI-RESULTS.md); первоначальный локальный [отчёт](docs/VERIFICATION.md).
 
 ## Сборка и тесты без Docker
 
-Нужны JDK 17 или 21, Maven Wrapper и доступ к Maven Central:
+Нужны JDK 21, Maven Wrapper и доступ к Maven Central:
 
 ```sh
 ./mvnw verify
@@ -56,3 +56,5 @@ docker compose -f compose.yml -f compose.oidc.yml up --build
 6. [Выполненные проверки](docs/VERIFICATION.md).
 
 API описан в [OpenAPI](api/openapi.json). Исходники: `src/main/java/dev/eufin`; миграции: `src/main/resources/db/migration`; официальные XSD и контрольные суммы: `src/main/resources/iso/xsd/sources.json`.
+
+Текущая версия использует **только Java 21**: Maven compiler release 21, Docker build/runtime JDK/JRE 21, CI JDK 21. Старые отчёты Java 17 относятся к предыдущей ревизии.
