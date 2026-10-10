@@ -214,8 +214,10 @@ class HttpE2ETest {
         .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers
             .springSecurity())
         .build();
+    // jwt() deliberately skips CsrfFilter in Spring's test support. Use ambient
+    // authentication here to verify the protection outside the bearer-header exception.
     var authentication = org.springframework.security.test.web.servlet.request
-        .SecurityMockMvcRequestPostProcessors.jwt();
+        .SecurityMockMvcRequestPostProcessors.user("csrf-user");
     var post = org.springframework.test.web.servlet.request.MockMvcRequestBuilders
         .post("/api/public/auth-config");
     mvc.perform(post.with(authentication))
