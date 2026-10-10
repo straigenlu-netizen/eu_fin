@@ -21,6 +21,7 @@ jobs:
             target/surefire-reports
             target/site/jacoco
             target/performance-results.json
+            target/sdd-performance-results.json
   codeql:
     runs-on: ubuntu-latest
     permissions:
