@@ -10,9 +10,9 @@
   "evidence": {
     "isoSchemas": 7,
     "schemaManifest": "src/main/resources/iso/xsd/sources.json",
-    "ciRun": "https://github.com/straigenlu-netizen/eu_fin/actions/runs/38051899042",
-    "testedCommit": "c35a91e08c9ebb4388937ada1971a5c9bff18761",
-    "ciStatus": "SUCCESS_WITH_CODEQL_EXPLICITLY_SKIPPED",
+    "ciRun": "https://github.com/straigenlu-netizen/eu_fin/actions/runs/38054109827",
+    "testedCommit": "af7a6ec556bb51cd3bf9081e27bf1fa086616898",
+    "ciStatus": "SUCCESS",
     "testsDiscovered": 89,
     "testsPassed": 88,
     "testsSkipped": 1,
@@ -23,7 +23,7 @@
       "verify": "SUCCESS",
       "browser": "SUCCESS",
       "dependencies": "SUCCESS",
-      "codeql": "SKIPPED_CODE_SCANNING_NOT_ENABLED",
+      "codeql": "SUCCESS",
       "sast": "SUCCESS_6_LOCAL_RULES"
     },
     "sddPerformanceReport": "docs/sdd-performance-results.json",
@@ -34,6 +34,11 @@
       "filesScanned": 28,
       "findings": 0,
       "limitations": "Focused local rules, not equivalent to CodeQL"
+    },
+    "englishOnlyCheck": {
+      "trackedTextFiles": 108,
+      "cyrillicViolations": 0,
+      "script": "scripts/check-english.py"
     }
   },
   "blockingGaps": [
@@ -43,8 +48,7 @@
     "SDD external refund settlement, statutory exceptions, compensation and full evidence validation incomplete",
     "SDD notification, calendars, CSM presentation and complete mandate/R-transaction lifecycle incomplete",
     "No production VOP or payment SCA dynamic linking",
-    "Incomplete SEPA geographical reachability",
-    "Broad CodeQL analysis remains unverified; Code Scanning disabled, focused Semgrep checks pass"
+    "Incomplete SEPA geographical reachability"
   ],
   "report": "docs/SEPA-ISO-CONFORMANCE.md",
   "implementedRequirements": [

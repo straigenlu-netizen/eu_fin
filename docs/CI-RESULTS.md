@@ -1,3 +1,15 @@
+# English-only repository verification
+
+Commit: `af7a6ec556bb51cd3bf9081e27bf1fa086616898`. [GitHub Actions](https://github.com/straigenlu-netizen/eu_fin/actions/runs/38054109827), 10 October 2026: **SUCCESS**.
+
+All 12 previously Russian-language documentation files are now English. UI and source text were already English. The language guard checked 108 tracked text files and found no Cyrillic characters. Separate local checks confirmed that English passes and Cyrillic input fails with a file/line location. README/documentation relative links were verified.
+
+Java 21: 89 tests discovered, 88 executed, one conditional ExternalKafkaTest skipped, zero failures/errors. Real PostgreSQL/Kafka and load tests passed. All 24 browser checks, Semgrep and Trivy passed. **CodeQL analysis completed successfully** after the repository became public; this records successful analysis, not certification or proof of no vulnerabilities.
+
+The language policy applies to current repository content, not git history or customer-supplied data. CI enforces it with `python3 scripts/check-english.py`.
+
+## Earlier implementation evidence
+
 # Java 21 - CI fixes and mandate lifecycle
 
 Commit: `c35a91e08c9ebb4388937ada1971a5c9bff18761`. [GitHub Actions](https://github.com/straigenlu-netizen/eu_fin/actions/runs/38051899042), 10 October 2026: **SUCCESS**.
