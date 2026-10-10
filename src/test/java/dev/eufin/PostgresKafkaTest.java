@@ -26,7 +26,9 @@ class PostgresKafkaTest {
   @Container
   static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16.6-alpine");
 
-  @Container static KafkaContainer kafka = new KafkaContainer("apache/kafka:3.9.0");
+  @Container static KafkaContainer kafka = new KafkaContainer("apache/kafka:3.9.0")
+    // Kafka 3.9 also validates the effective advertised controller address.
+    .withEnv("KAFKA_LISTENERS", "PLAINTEXT://0.0.0.0:9092,BROKER://0.0.0.0:9093,CONTROLLER://localhost:9094");
 
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry p) {
