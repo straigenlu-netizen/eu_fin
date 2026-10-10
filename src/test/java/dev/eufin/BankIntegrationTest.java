@@ -237,7 +237,8 @@ class BankIntegrationTest {
   void mandateAndRefund() {
     String m =
         bank.mandate(
-            alice, new NewMandate(a.id(), b.id(), LocalDate.of(2027, 1, 1), new BigDecimal("20")));
+            alice, new NewMandate(a.id(), b.id(), LocalDate.of(2027, 1, 1), new BigDecimal("20"),
+                "MANDATE-2026-001", "DE98ZZZ09999999999", LocalDate.of(2026, 9, 1), "RCUR"));
     assertThatThrownBy(() -> bank.initiate(alice, "key", request("SDD_CORE", m)))
         .hasMessage("FORBIDDEN");
     Payment p = bank.initiate(bob, "key", request("SDD_CORE", m));
@@ -246,6 +247,43 @@ class BankIntegrationTest {
     iso.validate(iso.export(alice, p.id(), "pain008"), "pain.008.001.08");
     assertThat(bank.refund(alice, p.id()).status()).isEqualTo("RETURNED");
     assertThat(bank.account(alice, a.id()).balance()).isEqualByComparingTo("100");
+  }
+
+  @Test
+  void directDebitXmlKeepsActualMandateMetadata() {
+    String m = bank.mandate(alice, new NewMandate(a.id(), b.id(), LocalDate.of(2027, 1, 1),
+        new BigDecimal("20"), "SIGNED-REFERENCE", "DE98ZZZ09999999999", LocalDate.of(2026, 9, 1), "OOFF"));
+    Payment p = bank.initiate(bob, "metadata", request("SDD_CORE", m));
+    for (String type : List.of("pain008", "pacs003")) {
+      assertThat(iso.export(alice, p.id(), type)).contains("<MndtId>SIGNED-REFERENCE</MndtId>",
+          "<DtOfSgntr>2026-09-01</DtOfSgntr>", "<Id>DE98ZZZ09999999999</Id>", "<SeqTp>OOFF</SeqTp>");
+    }
+  }
+
+  @Test
+  void incompleteOrFutureDatedMandateMetadataIsRejected() {
+    assertThatThrownBy(() -> bank.mandate(alice, new NewMandate(a.id(), b.id(), LocalDate.of(2027, 1, 1),
+        new BigDecimal("20"), "REFERENCE", null, null, null))).hasMessage("INVALID_MANDATE_METADATA");
+    assertThatThrownBy(() -> bank.mandate(alice, new NewMandate(a.id(), b.id(), LocalDate.of(2027, 1, 1),
+        new BigDecimal("20"), "REFERENCE", "DE98ZZZ09999999999", LocalDate.of(2026, 10, 11), "RCUR")))
+        .hasMessage("INVALID_MANDATE_METADATA");
+  }
+
+  @Test
+  void legacyMandatesCannotFabricateSepaMetadata() {
+    String m = bank.mandate(alice, new NewMandate(a.id(), b.id(), LocalDate.of(2027, 1, 1), new BigDecimal("20")));
+    Payment p = bank.initiate(bob, "legacy", request("SDD_CORE", m));
+    for (String type : List.of("pain008", "pacs003"))
+      assertThatThrownBy(() -> iso.export(alice, p.id(), type)).hasMessage("SEPA_MANDATE_METADATA_REQUIRED");
+  }
+
+  @Test
+  void instantXmlRetainsAcceptanceTimestampWithMilliseconds() {
+    Payment p = bank.initiate(alice, "timestamp", request("SCT_INST", null));
+    String xml = iso.export(alice, p.id(), "pacs008");
+    assertThat(xml).contains("<AccptncDtTm>2026-10-10T12:00:00.000Z</AccptncDtTm>");
+    when(clock.instant()).thenReturn(Instant.parse("2026-10-10T12:00:01Z"));
+    assertThat(iso.export(alice, p.id(), "pacs008")).contains("<AccptncDtTm>2026-10-10T12:00:00.000Z</AccptncDtTm>");
   }
 
   @Test

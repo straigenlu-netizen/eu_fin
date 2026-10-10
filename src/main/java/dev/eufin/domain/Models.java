@@ -50,7 +50,15 @@ public final class Models {
       @NotBlank String debtorId,
       @NotBlank String creditorId,
       @NotNull java.time.LocalDate validUntil,
-      @NotNull BigDecimal maxAmount) {}
+      @NotNull BigDecimal maxAmount,
+      @Size(max = 35) String mandateReference,
+      @Size(max = 35) String creditorIdentifier,
+      java.time.LocalDate signatureDate,
+      @Pattern(regexp = "FRST|RCUR|OOFF|FNAL") String sequenceType) {
+    public NewMandate(String debtorId, String creditorId, java.time.LocalDate validUntil, BigDecimal maxAmount) {
+      this(debtorId, creditorId, validUntil, maxAmount, null, null, null, null);
+    }
+  }
 
   public record NewConsent(
       @NotBlank String accountId,

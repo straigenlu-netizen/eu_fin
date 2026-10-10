@@ -198,8 +198,9 @@ public class BankService {
       return old.get(0);
     }
     String route = Rules.route(req.scheme(), creditor.iban());
-    if (req.endToEndId() == null || req.endToEndId().isBlank() || req.endToEndId().length() > 35)
-      throw BankError.invalid("INVALID_END_TO_END_ID");
+    Rules.sepaReference(req.endToEndId());
+    Rules.sepaName(debtor.name());
+    Rules.sepaName(creditor.name());
     if (req.creditorName() == null || !Rules.nameMatches(req.creditorName(), creditor.name()))
       throw BankError.invalid("PAYEE_NAME_MISMATCH");
     if (directDebit) {
@@ -446,15 +447,26 @@ public class BankService {
     lockAccounts(req.debtorId(), req.creditorId());
     own(actor, loadAccount(req.debtorId(), false));
     if (req.validUntil().isBefore(LocalDate.now(clock))) throw BankError.invalid("MANDATE_EXPIRED");
+    boolean metadata = req.mandateReference() != null || req.creditorIdentifier() != null
+        || req.signatureDate() != null || req.sequenceType() != null;
+    if (metadata) {
+      Rules.sepaReference(req.mandateReference());
+      if (req.creditorIdentifier() == null || !req.creditorIdentifier().matches("[A-Z]{2}[0-9]{2}[A-Za-z0-9]{4,31}")
+          || req.signatureDate() == null || req.signatureDate().isAfter(LocalDate.now(clock))
+          || req.signatureDate().isAfter(req.validUntil())
+          || !Set.of("FRST", "RCUR", "OOFF", "FNAL").contains(req.sequenceType() == null ? "" : req.sequenceType()))
+        throw BankError.invalid("INVALID_MANDATE_METADATA");
+    }
     String id = id();
     db.update(
-        "insert into mandate values(?,?,?,?,?,?)",
+        "insert into mandate(id,debtor_id,creditor_id,active,valid_until,max_amount,mandate_reference,creditor_identifier,signature_date,sequence_type) values(?,?,?,?,?,?,?,?,?,?)",
         id,
         req.debtorId(),
         req.creditorId(),
         true,
         java.sql.Date.valueOf(req.validUntil()),
-        Rules.money(req.maxAmount()));
+        Rules.money(req.maxAmount()), req.mandateReference(), req.creditorIdentifier(),
+        req.signatureDate() == null ? null : java.sql.Date.valueOf(req.signatureDate()), req.sequenceType());
     return id;
   }
 

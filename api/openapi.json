@@ -2655,6 +2655,27 @@
             "type": "number",
             "exclusiveMinimum": 0,
             "multipleOf": 0.01
+          },
+          "mandateReference": {
+            "type": "string",
+            "maxLength": 35
+          },
+          "creditorIdentifier": {
+            "type": "string",
+            "maxLength": 35
+          },
+          "signatureDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "sequenceType": {
+            "type": "string",
+            "enum": [
+              "FRST",
+              "RCUR",
+              "OOFF",
+              "FNAL"
+            ]
           }
         },
         "required": [

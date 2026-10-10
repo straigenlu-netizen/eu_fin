@@ -10,6 +10,19 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class RulesTest {
+  @ParameterizedTest
+  @ValueSource(strings = {"/leading", "trailing/", "two//slashes", "", "                                    "})
+  void rejectsInvalidSepaReferences(String value) {
+    assertThatThrownBy(() -> Rules.sepaReference(value)).hasMessage("INVALID_SEPA_REFERENCE");
+  }
+
+  @Test
+  void sepaNamesHaveCurrentSeventyCharacterLimit() {
+    Rules.sepaName("A".repeat(70));
+    assertThatThrownBy(() -> Rules.sepaName("A".repeat(71))).hasMessage("INVALID_SEPA_NAME");
+    assertThat(Rules.sepaReference("valid/single/slash")).isEqualTo("valid/single/slash");
+  }
+
   @Test
   void validatesIbanAndNormalizes() {
     assertThat(Rules.iban("de89 3704 0044 0532 0130 00")).isEqualTo("DE89370400440532013000");

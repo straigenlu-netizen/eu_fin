@@ -40,6 +40,19 @@ public final class Rules {
     return n.setScale(2);
   }
 
+  /** EPC identification restrictions; this is not a complete scheme validator. */
+  public static String sepaReference(String value) {
+    if (value == null || value.isBlank() || value.length() > 35
+        || value.startsWith("/") || value.endsWith("/") || value.contains("//"))
+      throw BankError.invalid("INVALID_SEPA_REFERENCE");
+    return value;
+  }
+
+  public static void sepaName(String value) {
+    if (value == null || value.isBlank() || value.length() > 70)
+      throw BankError.invalid("INVALID_SEPA_NAME");
+  }
+
   public static String fingerprint(Object value) {
     try {
       return HexFormat.of()

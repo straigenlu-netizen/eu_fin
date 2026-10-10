@@ -186,6 +186,11 @@ public class IsoService {
         || root.getElementsByTagNameNS(root.getNamespaceURI(), "RmtInf").getLength() > 0
         || root.getElementsByTagNameNS(root.getNamespaceURI(), "SplmtryData").getLength() > 0)
       throw BankError.invalid("UNSUPPORTED_XML_PROFILE");
+    for (String reference : List.of(value(group, "MsgId"), value(info, "PmtInfId"), value(one(tx, "PmtId"), "EndToEndId")))
+      Rules.sepaReference(reference);
+    Rules.sepaName(value(one(group, "InitgPty"), "Nm"));
+    Rules.sepaName(value(one(info, "Dbtr"), "Nm"));
+    Rules.sepaName(value(one(tx, "Cdtr"), "Nm"));
     String date = value(one(info, "ReqdExctnDt"), "Dt");
     if (!LocalDate.parse(date).equals(LocalDate.now(clock)))
       throw BankError.invalid("SCHEDULED_PAYMENTS_UNSUPPORTED");
@@ -219,10 +224,30 @@ public class IsoService {
             null));
   }
 
+  private static String timestamp(Instant instant) {
+    return new java.time.format.DateTimeFormatterBuilder().appendInstant(3).toFormatter().format(instant);
+  }
+
+  private String mandateXml(Payment payment) {
+    Map<String, Object> m = db.queryForMap("select * from mandate where id=?", payment.mandateId());
+    if (m.get("mandate_reference") == null || m.get("creditor_identifier") == null
+        || m.get("signature_date") == null || m.get("sequence_type") == null)
+      throw BankError.invalid("SEPA_MANDATE_METADATA_REQUIRED");
+    return "<MndtRltdInf>" + tag("MndtId", m.get("mandate_reference"))
+        + tag("DtOfSgntr", m.get("signature_date").toString())
+        + "</MndtRltdInf><CdtrSchmeId><Id><PrvtId><Othr>"
+        + tag("Id", m.get("creditor_identifier"))
+        + "<SchmeNm><Prtry>SEPA</Prtry></SchmeNm></Othr></PrvtId></Id></CdtrSchmeId>";
+  }
+
+  private String sequence(Payment payment) {
+    return db.queryForObject("select sequence_type from mandate where id=?", String.class, payment.mandateId());
+  }
+
   private String header(String id, int count) {
     return "<GrpHdr>"
         + tag("MsgId", shortId(id))
-        + tag("CreDtTm", clock.instant())
+        + tag("CreDtTm", timestamp(clock.instant()))
         + tag("NbOfTxs", count)
         + "<SttlmInf><SttlmMtd>CLRG</SttlmMtd></SttlmInf></GrpHdr>";
   }
@@ -235,6 +260,9 @@ public class IsoService {
     Payment p = bank.payment(actor, id);
     Account d = bank.account(new Actor("iso", true), p.debtorId()),
         c = bank.account(new Actor("iso", true), p.creditorId());
+    Rules.sepaName(d.name());
+    Rules.sepaName(c.name());
+    Rules.sepaReference(p.endToEndId());
     String amount = p.amount().toPlainString();
     String pmt =
         "<PmtId>" + tag("EndToEndId", p.endToEndId()) + tag("TxId", shortId(id)) + "</PmtId>";
@@ -256,6 +284,7 @@ public class IsoService {
                 + amount
                 + "</IntrBkSttlmAmt>"
                 + tag("IntrBkSttlmDt", LocalDate.now(clock))
+                + (p.scheme().equals("SCT_INST") ? tag("AccptncDtTm", timestamp(p.createdAt())) : "")
                 + "<ChrgBr>SLEV</ChrgBr>"
                 + party("Dbtr", d.name())
                 + account("DbtrAcct", d.iban())
@@ -277,7 +306,7 @@ public class IsoService {
             "pacs.002.001.10",
             "<FIToFIPmtStsRpt><GrpHdr>"
                 + tag("MsgId", shortId(UUID.randomUUID().toString()))
-                + tag("CreDtTm", clock.instant())
+                + tag("CreDtTm", timestamp(clock.instant()))
                 + "</GrpHdr><OrgnlGrpInfAndSts>"
                 + tag("OrgnlMsgId", shortId(id))
                 + tag(
@@ -294,7 +323,7 @@ public class IsoService {
             "pain.001.001.09",
             "<CstmrCdtTrfInitn><GrpHdr>"
                 + tag("MsgId", shortId(id))
-                + tag("CreDtTm", clock.instant())
+                + tag("CreDtTm", timestamp(clock.instant()))
                 + "<NbOfTxs>1</NbOfTxs>"
                 + tag("CtrlSum", amount)
                 + party("InitgPty", d.name())
@@ -320,16 +349,17 @@ public class IsoService {
       }
       case "pain008" -> {
         if (!p.scheme().equals("SDD_CORE")) throw BankError.invalid("WRONG_MESSAGE_FOR_SCHEME");
+        mandateXml(p);
         yield document(
             "pain.008.001.08",
             "<CstmrDrctDbtInitn><GrpHdr>"
                 + tag("MsgId", shortId(id))
-                + tag("CreDtTm", clock.instant())
+                + tag("CreDtTm", timestamp(clock.instant()))
                 + "<NbOfTxs>1</NbOfTxs>"
                 + party("InitgPty", c.name())
                 + "</GrpHdr><PmtInf>"
                 + tag("PmtInfId", shortId(id))
-                + "<PmtMtd>DD</PmtMtd><PmtTpInf><SvcLvl><Cd>SEPA</Cd></SvcLvl><LclInstrm><Cd>CORE</Cd></LclInstrm><SeqTp>RCUR</SeqTp></PmtTpInf>"
+                + "<PmtMtd>DD</PmtMtd><PmtTpInf><SvcLvl><Cd>SEPA</Cd></SvcLvl><LclInstrm><Cd>CORE</Cd></LclInstrm><SeqTp>" + escape(sequence(p)) + "</SeqTp></PmtTpInf>"
                 + tag("ReqdColltnDt", LocalDate.now(clock))
                 + party("Cdtr", c.name())
                 + account("CdtrAcct", c.iban())
@@ -338,10 +368,9 @@ public class IsoService {
                 + tag("EndToEndId", p.endToEndId())
                 + "</PmtId><InstdAmt Ccy=\"EUR\">"
                 + amount
-                + "</InstdAmt><DrctDbtTx><MndtRltdInf>"
-                + tag("MndtId", shortId(p.mandateId()))
-                + tag("DtOfSgntr", LocalDate.now(clock))
-                + "</MndtRltdInf></DrctDbtTx>"
+                + "</InstdAmt><DrctDbtTx>"
+                + mandateXml(p)
+                + "</DrctDbtTx>"
                 + agent("DbtrAgt")
                 + party("Dbtr", d.name())
                 + account("DbtrAcct", d.iban())
@@ -349,23 +378,23 @@ public class IsoService {
       }
       case "pacs003" -> {
         if (!p.scheme().equals("SDD_CORE")) throw BankError.invalid("WRONG_MESSAGE_FOR_SCHEME");
+        mandateXml(p);
         yield document(
             "pacs.003.001.08",
             "<FIToFICstmrDrctDbt>"
                 + header(id, 1)
                 + "<DrctDbtTxInf>"
                 + pmt
-                + "<PmtTpInf><SvcLvl><Cd>SEPA</Cd></SvcLvl><LclInstrm><Cd>CORE</Cd></LclInstrm><SeqTp>RCUR</SeqTp></PmtTpInf><IntrBkSttlmAmt"
+                + "<PmtTpInf><SvcLvl><Cd>SEPA</Cd></SvcLvl><LclInstrm><Cd>CORE</Cd></LclInstrm><SeqTp>" + escape(sequence(p)) + "</SeqTp></PmtTpInf><IntrBkSttlmAmt"
                 + " Ccy=\"EUR\">"
                 + amount
                 + "</IntrBkSttlmAmt>"
                 + tag("IntrBkSttlmDt", LocalDate.now(clock))
                 + "<ChrgBr>SLEV</ChrgBr>"
                 + tag("ReqdColltnDt", LocalDate.now(clock))
-                + "<DrctDbtTx><MndtRltdInf>"
-                + tag("MndtId", shortId(p.mandateId()))
-                + tag("DtOfSgntr", LocalDate.now(clock))
-                + "</MndtRltdInf></DrctDbtTx>"
+                + "<DrctDbtTx>"
+                + mandateXml(p)
+                + "</DrctDbtTx>"
                 + party("Cdtr", c.name())
                 + account("CdtrAcct", c.iban())
                 + agent("CdtrAgt")
@@ -416,10 +445,10 @@ public class IsoService {
         "camt.053.001.08",
         "<BkToCstmrStmt><GrpHdr>"
             + tag("MsgId", shortId(UUID.randomUUID().toString()))
-            + tag("CreDtTm", clock.instant())
+            + tag("CreDtTm", timestamp(clock.instant()))
             + "</GrpHdr><Stmt>"
             + tag("Id", shortId(id))
-            + tag("CreDtTm", clock.instant())
+            + tag("CreDtTm", timestamp(clock.instant()))
             + account("Acct", a.iban())
             + balance("OPBD", BigDecimal.ZERO)
             + balance("CLBD", total)
