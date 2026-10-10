@@ -8,6 +8,21 @@ const base=process.env.BANK_BASE_URL||'http://localhost:18080';
 const secret=process.env.BANK_JWT_SECRET;
 if(!secret)throw new Error('Set BANK_JWT_SECRET for the isolated browser test server');
 function token(subject,scope){const encode=x=>Buffer.from(JSON.stringify(x)).toString('base64url');const unsigned=encode({alg:'HS256',typ:'JWT'})+'.'+encode({iss:'eu-fin-lab',aud:['eu-fin'],sub:subject,scope,amr:['mfa'],iat:Math.floor(Date.now()/1000)-10,exp:Math.floor(Date.now()/1000)+300});return unsigned+'.'+createHmac('sha256',secret).update(unsigned).digest('base64url');}
+async function bankApi(subject,scope,path,method='GET',body,key) {
+ const response=await fetch(base+'/api/v1'+path,{method,headers:{Authorization:'Bearer '+token(subject,scope),
+  ...(body?{'Content-Type':'application/json'}:{}),...(key?{'Idempotency-Key':key}:{})},body:body?JSON.stringify(body):undefined});
+ assert.equal(response.status,200,await response.clone().text()); return response.json();
+}
+async function createSdd(key) {
+ const alice='00000000-0000-0000-0000-000000000001',bob='00000000-0000-0000-0000-000000000002';
+ const debtor=(await bankApi(alice,'bank.pay','/accounts'))[0],creditor=(await bankApi(bob,'bank.pay','/accounts'))[0];
+ const mandate=await bankApi(alice,'bank.pay','/mandates','POST',{debtorId:debtor.id,creditorId:creditor.id,validUntil:'2030-01-01',maxAmount:20});
+ const payment=await bankApi(bob,'bank.pay','/payments','POST',{debtorId:debtor.id,creditorId:creditor.id,amount:10,scheme:'SDD_CORE',
+  endToEndId:key,creditorName:creditor.name,mandateId:mandate.id},key);
+ for(let attempt=0;attempt<50;attempt++) {const current=await bankApi(alice,'bank.pay','/payments/'+payment.id);
+  if(current.status==='SETTLED')return current;await new Promise(resolve=>setTimeout(resolve,200));}
+ throw new Error('Direct debit did not settle in the lab worker');
+}
 const browser=await chromium.launch({headless:true});
 let checks=0;
 async function login(context,subject,scope){await context.route('http://localhost:8082/realms/eu-fin/protocol/openid-connect/auth?*',async route=>{const u=new URL(route.request().url());assert.equal(u.searchParams.get('code_challenge_method'),'S256');assert.ok(u.searchParams.get('code_challenge'));checks++;await route.fulfill({status:302,headers:{location:base+'/bank/?code=browser-test&state='+u.searchParams.get('state')}});});await context.route('http://localhost:8082/realms/eu-fin/protocol/openid-connect/token',async route=>{const p=new URLSearchParams(route.request().postData());assert.equal(p.get('grant_type'),'authorization_code');assert.equal(p.get('code'),'browser-test');assert.ok(p.get('code_verifier').length>=43);checks++;await route.fulfill({status:200,contentType:'application/json',headers:{'Access-Control-Allow-Origin':base},body:JSON.stringify({access_token:token(subject,scope),id_token:'test-only-id-token'})});});const page=await context.newPage();await page.goto(base+'/bank/');await page.getByRole('button',{name:'Sign in / Create account'}).click();await page.getByRole('button',{name:'Sign out'}).waitFor();return page;}
@@ -15,8 +30,28 @@ try{
  const customer=await browser.newContext();const page=await login(customer,'00000000-0000-0000-0000-000000000001','bank.pay');await page.locator('input[name="email"]').waitFor();assert.equal(await page.locator('input[name="email"]').inputValue(),'alice@example.test');assert.equal(await page.locator('#staffTab').isVisible(),false);assert.equal(await page.locator('input[name="legalName"]').getAttribute('readonly'),'');checks+=3;
  await page.locator('input[name="email"]').fill('alice.changed@example.test');await page.getByRole('button',{name:'Save contact details'}).click();await page.getByText('Profile saved.').waitFor();assert.equal(await page.locator('input[name="email"]').inputValue(),'alice.changed@example.test');checks++;
  await page.getByRole('button',{name:'Accounts & payments',exact:true}).click();await page.getByText('1000.00 EUR',{exact:true}).waitFor();checks++;
+ const directDebit=await createSdd('BROWSER-SDD-REFUND');
+ await page.getByRole('button',{name:'Refunds & disputes',exact:true}).click();
+ await page.locator('#refundPaymentId').fill(directDebit.id);await page.getByRole('button',{name:'Find direct debit'}).click();
+ await page.getByRole('button',{name:'Request eight-week refund'}).click();
+ await page.getByText('Your direct debit refund has been credited.',{exact:true}).waitFor();
+ assert.equal((await bankApi('00000000-0000-0000-0000-000000000001','bank.pay','/accounts'))[0].balance,1000);checks++;
+ assert.equal(await page.locator('#operationsTab').isVisible(),false);checks++;
+ const disputed=await createSdd('BROWSER-SDD-DISPUTE');
+ await page.locator('#refundPaymentId').fill(disputed.id);await page.getByRole('button',{name:'Find direct debit'}).click();
+ await page.getByRole('button',{name:'Report unauthorised debit'}).click();
+ await page.getByText('Refund credited; investigation in progress',{exact:true}).waitFor();
+ assert.equal((await bankApi('00000000-0000-0000-0000-000000000001','bank.pay','/accounts'))[0].balance,1000);checks++;
+ const operations=await browser.newContext();const operator=await login(operations,'independent-operator','bank.ops');
+ await operator.locator('#sddCases .customer').first().waitFor();
+ await operator.getByRole('button',{name:'Save investigation decision'}).click();
+ await operator.getByText('Unauthorised debit confirmed',{exact:true}).waitFor();checks++;
+ const recovery=operator.locator('#sddRecoveries .customer').filter({hasText:directDebit.id});
+ await recovery.getByLabel('Recovery amount in EUR').fill('10');await recovery.getByRole('button',{name:'Recover from creditor'}).click();
+ await recovery.getByText('Outstanding: 0 EUR',{exact:true}).waitFor();checks++;
+ assert.equal((await bankApi('00000000-0000-0000-0000-000000000001','bank.pay','/accounts'))[0].balance,1000);checks++;
  const signup=await browser.newContext();const newPage=await login(signup,'new-browser-customer','bank.pay');await newPage.locator('input[name="legalName"]').fill('<img src=x onerror=window.attack=true>');await newPage.locator('input[name="dateOfBirth"]').fill('1990-01-01');await newPage.locator('input[name="nationality"]').fill('PL');await newPage.locator('input[name="email"]').fill('new@example.test');await newPage.locator('input[name="phone"]').fill('+48123456789');await newPage.locator('input[name="address"]').fill('Fictional Street 9');await newPage.locator('input[name="city"]').fill('Warsaw');await newPage.locator('input[name="country"]').fill('PL');await newPage.getByRole('button',{name:'Create my profile'}).click();await newPage.getByText('Profile saved.').waitFor();assert.equal(await newPage.evaluate(()=>window.attack),undefined);checks++;
  const employee=await browser.newContext();const staff=await login(employee,'agent','bank.agent');await staff.getByRole('button',{name:'Customer care',exact:true}).click();await staff.locator('#customers .customer').first().waitFor();assert.equal(await staff.locator('#customers .customer').count(),6);assert.ok((await staff.locator('#customers').innerText()).includes('a***@example.test'));assert.equal(await staff.locator('#customers img').count(),0);assert.equal(await staff.evaluate(()=>window.attack),undefined);checks+=4;
- await fs.promises.mkdir('target/browser',{recursive:true});await page.screenshot({path:'target/browser/customer.png',fullPage:true});await staff.screenshot({path:'target/browser/staff.png',fullPage:true});
- await fs.promises.writeFile('target/browser/results.json',JSON.stringify({checks,status:'passed',identityProvider:'mocked authorization and token endpoints',backend:'real HTTP Spring Boot, JWT, encrypted profiles and H2',scope:'UI functional tests; not a Keycloak authentication certification'},null,2));console.log(JSON.stringify({checks,status:'passed'}));
+ await fs.promises.mkdir('target/browser',{recursive:true});await page.screenshot({path:'target/browser/customer.png',fullPage:true});await staff.screenshot({path:'target/browser/staff.png',fullPage:true});await operator.screenshot({path:'target/browser/operations.png',fullPage:true});
+ await fs.promises.writeFile('target/browser/results.json',JSON.stringify({checks,status:'passed',identityProvider:'mocked authorization and token endpoints',backend:'real HTTP Spring Boot, JWT, encrypted profiles and H2',scope:'UI onboarding, SDD refund, unauthorised claim, independent investigation and recovery; not a Keycloak authentication certification'},null,2));console.log(JSON.stringify({checks,status:'passed'}));
 }finally{await browser.close();}

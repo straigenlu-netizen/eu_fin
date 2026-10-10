@@ -46,6 +46,9 @@ class BankIntegrationTest {
             "outbox",
             "payment_event",
             "ledger",
+            "sdd_dispute",
+            "sdd_recovery",
+            "sdd_refund",
             "payment",
             "mandate",
             "consent",
@@ -303,7 +306,219 @@ class BankIntegrationTest {
             alice, new NewMandate(a.id(), b.id(), LocalDate.of(2027, 1, 1), new BigDecimal("20")));
     Payment p = settle(bank.initiate(bob, "key", request("SDD_CORE", m)));
     when(clock.instant()).thenReturn(now.plus(Duration.ofDays(57)));
-    assertThatThrownBy(() -> bank.refund(alice, p.id())).hasMessage("REFUND_NOT_SUPPORTED");
+    assertThatThrownBy(() -> bank.refund(alice, p.id())).hasMessage("REFUND_WINDOW_EXPIRED");
+  }
+
+  Payment directDebit() {
+    String mandate = bank.mandate(alice, new NewMandate(a.id(), b.id(), LocalDate.of(2027, 12, 31), new BigDecimal("20")));
+    return settle(bank.initiate(bob, "sdd", request("SDD_CORE", mandate)));
+  }
+
+  void assertBalancedBooking(String booking) {
+    assertThat(db.queryForObject("select sum(delta) from ledger where booking_id=?", BigDecimal.class, booking)).isZero();
+    assertThat(db.queryForObject("select count(*) from ledger where booking_id=?", Long.class, booking)).isEqualTo(2);
+  }
+
+  @Test
+  void sddRefundCreditsPayerEvenWhenCreditorHasSpentEverything() {
+    Payment p = directDebit();
+    Account merchantOther = bank.open(bob, new OpenAccount("BE68539007547034", "Bob & Co"));
+    settle(bank.initiate(bob, "spend", new Initiate(b.id(), merchantOther.id(), new BigDecimal("10"),
+        "SCT", "SPEND", "Bob & Co", null)));
+    assertThat(bank.account(bob, b.id()).balance()).isZero();
+    assertThat(bank.refund(alice, p.id()).reason()).isEqualTo("MD06");
+    assertThat(bank.account(alice, a.id()).balance()).isEqualByComparingTo("100");
+    assertThat(bank.account(bob, b.id()).balance()).isZero();
+    assertThat(bank.sddRefunds(ops, 0).get(0).outstandingAmount()).isEqualByComparingTo("10");
+    assertBalancedBooking("SDD_REFUND:" + p.id());
+    assertThat(db.queryForObject("select sum(delta) from ledger where bank_account='SDD_RECOVERY'", BigDecimal.class))
+        .isEqualByComparingTo("-10");
+  }
+
+  @Test
+  void sddRefundDoesNotConsumeFundsReservedByCreditor() {
+    Payment p = directDebit();
+    bank.initiate(bob, "reserve", new Initiate(b.id(), a.id(), new BigDecimal("10"), "SCT", "RESERVE", "Alice Doe", null));
+    bank.refund(alice, p.id());
+    assertThat(bank.account(bob, b.id()).balance()).isEqualByComparingTo("10");
+    assertThat(bank.account(bob, b.id()).held()).isEqualByComparingTo("10");
+    assertThatThrownBy(() -> bank.recoverSddRefund(ops, p.id(), "recover", new BigDecimal("1")))
+        .hasMessage("RECOVERY_LIQUIDITY_REQUIRED");
+    assertThat(bank.account(alice, a.id()).balance()).isEqualByComparingTo("100");
+  }
+
+  @Test
+  void sddRefundRetriesAndConcurrentRequestsCreditExactlyOnce() throws Exception {
+    Payment p = directDebit();
+    try (var pool = Executors.newFixedThreadPool(6)) {
+      List<Future<Payment>> calls = new ArrayList<>();
+      for (int i = 0; i < 6; i++) calls.add(pool.submit(() -> bank.refund(alice, p.id())));
+      for (var call : calls) assertThat(call.get(15, TimeUnit.SECONDS).status()).isEqualTo("RETURNED");
+    }
+    when(clock.instant()).thenReturn(now.plus(Duration.ofDays(500)));
+    assertThat(bank.refund(alice, p.id()).status()).isEqualTo("RETURNED");
+    assertThat(bank.account(alice, a.id()).balance()).isEqualByComparingTo("100");
+    assertBalancedBooking("SDD_REFUND:" + p.id());
+    assertThat(db.queryForObject("select count(*) from sdd_refund", Long.class)).isEqualTo(1);
+    assertThat(db.queryForObject("select count(*) from payment_event where payment_id=? and reason='MD06'", Long.class, p.id())).isEqualTo(1);
+  }
+
+  @Test
+  void sddRefundUsesDebitDateAndAllowsTheWholeFinalDay() {
+    Payment p = directDebit();
+    when(clock.instant()).thenReturn(Instant.parse("2026-12-05T23:59:59Z"));
+    bank.refund(alice, p.id());
+    assertThat(bank.sddRefunds(ops, 0).get(0).debitDate()).isEqualTo(LocalDate.of(2026, 10, 10));
+    assertThat(db.queryForObject("select value_date from ledger where booking_id=? and account_id=?",
+        java.sql.Date.class, "SDD_REFUND:" + p.id(), a.id()).toLocalDate()).isEqualTo(LocalDate.of(2026, 10, 10));
+    assertThat(iso.statement(alice, a.id())).contains("<ValDt><Dt>2026-10-10</Dt></ValDt>");
+    assertThat(iso.export(alice, p.id(), "pacs004")).contains("<Rsn><Cd>MD06</Cd></Rsn>");
+  }
+
+  @Test
+  void refundIsOnlyForPayerIncludingUsersWithOperationsRole() {
+    Payment p = directDebit();
+    for (Actor attacker : List.of(bob, ops, new Actor("bob", true)))
+      assertThatThrownBy(() -> bank.refund(attacker, p.id())).hasMessage("FORBIDDEN");
+    assertThatThrownBy(() -> bank.disputeSdd(bob, p.id(), new SddAllegation("NO_MANDATE"))).hasMessage("FORBIDDEN");
+    assertThat(bank.account(alice, a.id()).balance()).isEqualByComparingTo("90");
+    assertThat(db.queryForObject("select count(*) from sdd_refund", Long.class)).isZero();
+  }
+
+  @Test
+  void partialRecoveryIsSeparateIdempotentAndBalanced() {
+    Payment p = directDebit();
+    bank.refund(alice, p.id());
+    var first = bank.recoverSddRefund(ops, p.id(), "first", new BigDecimal("4"));
+    assertThat(bank.recoverSddRefund(ops, p.id(), "first", new BigDecimal("4"))).isEqualTo(first);
+    assertThat(bank.sddRefunds(ops, 0).get(0).outstandingAmount()).isEqualByComparingTo("6");
+    assertThatThrownBy(() -> bank.recoverSddRefund(ops, p.id(), "first", new BigDecimal("5"))).hasMessage("IDEMPOTENCY_CONFLICT");
+    assertThatThrownBy(() -> bank.recoverSddRefund(ops, p.id(), "over", new BigDecimal("7"))).hasMessage("RECOVERY_EXCEEDS_OUTSTANDING");
+    var last = bank.recoverSddRefund(ops, p.id(), "last", new BigDecimal("6"));
+    assertBalancedBooking("SDD_RECOVERY:" + first.id());
+    assertBalancedBooking("SDD_RECOVERY:" + last.id());
+    assertThat(bank.account(alice, a.id()).balance()).isEqualByComparingTo("100");
+    assertThat(bank.account(bob, b.id()).balance()).isZero();
+    assertThat(bank.sddRefunds(ops, 0).get(0).outstandingAmount()).isZero();
+    assertThat(db.queryForObject("select sum(delta) from ledger where bank_account='SDD_RECOVERY'", BigDecimal.class)).isZero();
+  }
+
+  @Test
+  void creditorCannotRecoverOwnRefundEvenWithOperationsRole() {
+    Payment p = directDebit();
+    bank.refund(alice, p.id());
+    assertThatThrownBy(() -> bank.recoverSddRefund(new Actor("bob", true), p.id(), "self", new BigDecimal("1")))
+        .hasMessage("SELF_RECOVERY_FORBIDDEN");
+    assertThatThrownBy(() -> bank.recoverSddRefund(alice, p.id(), "customer", new BigDecimal("1")))
+        .hasMessage("FORBIDDEN");
+  }
+
+  @Test
+  void unauthorisedClaimAfterEightWeeksRefundsImmediatelyAndIsIdempotent() {
+    Payment p = directDebit();
+    when(clock.instant()).thenReturn(now.plus(Duration.ofDays(100)));
+    var claim = bank.disputeSdd(alice, p.id(), new SddAllegation("NO_MANDATE"));
+    assertThat(claim.status()).isEqualTo("REFUNDED_UNDER_REVIEW");
+    assertThat(bank.disputeSdd(alice, p.id(), new SddAllegation("NO_MANDATE"))).isEqualTo(claim);
+    assertThat(bank.account(alice, a.id()).balance()).isEqualByComparingTo("100");
+    assertThat(bank.sddRefunds(ops, 0).get(0).kind()).isEqualTo("UNAUTHORISED");
+    assertThat(bank.payment(alice, p.id()).reason()).isEqualTo("MD01");
+    assertThat(iso.export(alice, p.id(), "pacs004")).contains("<Rsn><Cd>MD01</Cd></Rsn>");
+    assertThatThrownBy(() -> bank.disputeSdd(alice, p.id(), new SddAllegation("REVOKED_MANDATE")))
+        .hasMessage("IDEMPOTENCY_CONFLICT");
+    assertBalancedBooking("SDD_REFUND:" + p.id());
+  }
+
+  @Test
+  void unauthorisedClaimCannotBeUsedForCreditTransfers() {
+    Payment p = settle(pay("SCT"));
+    assertThatThrownBy(() -> bank.disputeSdd(alice, p.id(), new SddAllegation("NO_MANDATE"))).hasMessage("SDD_ONLY");
+    assertThatThrownBy(() -> bank.refund(alice, p.id())).hasMessage("SDD_ONLY");
+  }
+
+  @Test
+  void unauthorisedWindowUsesCalendarMonthsIncludingLeapYearEnd() {
+    when(clock.instant()).thenReturn(Instant.parse("2024-01-31T12:00:00Z"));
+    Payment p = directDebit();
+    when(clock.instant()).thenReturn(Instant.parse("2025-02-28T23:59:59Z"));
+    assertThat(bank.disputeSdd(alice, p.id(), new SddAllegation("NO_MANDATE")).status()).isEqualTo("REFUNDED_UNDER_REVIEW");
+  }
+
+  @Test
+  void unauthorisedClaimPastThirteenMonthsHasNoFinancialSideEffects() {
+    Payment p = directDebit();
+    when(clock.instant()).thenReturn(Instant.parse("2027-11-11T00:00:00Z"));
+    assertThatThrownBy(() -> bank.disputeSdd(alice, p.id(), new SddAllegation("NO_MANDATE"))).hasMessage("REFUND_WINDOW_EXPIRED");
+    assertThat(bank.account(alice, a.id()).balance()).isEqualByComparingTo("90");
+    assertThat(db.queryForObject("select count(*) from sdd_refund", Long.class)).isZero();
+    assertThat(db.queryForObject("select count(*) from sdd_dispute", Long.class)).isZero();
+    assertThat(bank.payment(alice, p.id()).status()).isEqualTo("SETTLED");
+  }
+
+  @Test
+  void investigationNeedsEvidenceAndNeverDebitsPayerAutomatically() {
+    Payment p = directDebit();
+    var claim = bank.disputeSdd(alice, p.id(), new SddAllegation("NO_MANDATE"));
+    assertThatThrownBy(() -> bank.decideSddDispute(ops, claim.id(), new SddDecision("AUTHORISATION_EVIDENCE_FOUND", null)))
+        .hasMessage("EVIDENCE_REQUIRED");
+    var decision = bank.decideSddDispute(ops, claim.id(), new SddDecision("AUTHORISATION_EVIDENCE_FOUND", "a".repeat(64)));
+    assertThat(decision.status()).isEqualTo("AUTHORISATION_EVIDENCE_FOUND");
+    assertThat(bank.decideSddDispute(ops, claim.id(), new SddDecision("AUTHORISATION_EVIDENCE_FOUND", "a".repeat(64))))
+        .isEqualTo(decision);
+    assertThatThrownBy(() -> bank.decideSddDispute(ops, claim.id(), new SddDecision("CONFIRMED_UNAUTHORISED", null)))
+        .hasMessage("DISPUTE_ALREADY_DECIDED");
+    assertThat(bank.account(alice, a.id()).balance()).isEqualByComparingTo("100");
+    assertThat(db.queryForObject("select count(*) from audit_log where action='SDD_AUTHORISATION_EVIDENCE_FOUND'", Long.class)).isEqualTo(1);
+  }
+
+  @Test
+  void disputeReviewAndListsRespectRolesAndSeparationOfDuties() {
+    Payment p = directDebit();
+    var claim = bank.disputeSdd(alice, p.id(), new SddAllegation("NO_MANDATE"));
+    for (Actor self : List.of(new Actor("alice", true), new Actor("bob", true)))
+      assertThatThrownBy(() -> bank.decideSddDispute(self, claim.id(), new SddDecision("CONFIRMED_UNAUTHORISED", null)))
+          .hasMessage("SELF_REVIEW_FORBIDDEN");
+    assertThatThrownBy(() -> bank.sddDisputes(alice, 0)).hasMessage("FORBIDDEN");
+    assertThatThrownBy(() -> bank.sddRefunds(bob, 0)).hasMessage("FORBIDDEN");
+    assertThatThrownBy(() -> bank.sddDisputes(ops, -1)).hasMessage("INVALID_PAGE");
+    assertThat(bank.sddDisputes(ops, 0)).containsExactly(claim);
+    assertThat(bank.sddDispute(alice, p.id())).isEqualTo(claim);
+    assertThatThrownBy(() -> bank.sddDispute(bob, p.id())).hasMessage("FORBIDDEN");
+    assertThat(bank.sddDisputes(ops, 1)).isEmpty();
+  }
+
+  @Test
+  void failedDisputeAuditRollsBackCreditJournalCaseAndOutbox() {
+    Payment p = directDebit();
+    long events = db.queryForObject("select count(*) from outbox", Long.class);
+    db.execute("alter table audit_log add constraint sdd_test_audit_fail check(action <> 'SDD_DISPUTE_OPENED')");
+    try {
+      assertThatThrownBy(() -> bank.disputeSdd(alice, p.id(), new SddAllegation("NO_MANDATE")))
+          .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    } finally { db.execute("alter table audit_log drop constraint sdd_test_audit_fail"); }
+    assertThat(bank.account(alice, a.id()).balance()).isEqualByComparingTo("90");
+    assertThat(bank.payment(alice, p.id()).status()).isEqualTo("SETTLED");
+    assertThat(db.queryForObject("select count(*) from sdd_refund", Long.class)).isZero();
+    assertThat(db.queryForObject("select count(*) from sdd_dispute", Long.class)).isZero();
+    assertThat(db.queryForObject("select count(*) from ledger where booking_id=?", Long.class, "SDD_REFUND:" + p.id())).isZero();
+    assertThat(db.queryForObject("select count(*) from outbox", Long.class)).isEqualTo(events);
+  }
+
+  @Test
+  void competingRefundAndDisputeCannotCreditTwice() throws Exception {
+    Payment p = directDebit();
+    try (var pool = Executors.newFixedThreadPool(2)) {
+      var regular = pool.submit(() -> bank.refund(alice, p.id()));
+      var disputed = pool.submit(() -> {
+        try { return bank.disputeSdd(alice, p.id(), new SddAllegation("NO_MANDATE")); }
+        catch (BankError e) { assertThat(e.code).isEqualTo("INVALID_TRANSITION"); return null; }
+      });
+      regular.get(15, TimeUnit.SECONDS);
+      disputed.get(15, TimeUnit.SECONDS);
+    }
+    assertThat(bank.account(alice, a.id()).balance()).isEqualByComparingTo("100");
+    assertBalancedBooking("SDD_REFUND:" + p.id());
+    assertThat(db.queryForObject("select count(*) from sdd_refund", Long.class)).isEqualTo(1);
   }
 
   @Test

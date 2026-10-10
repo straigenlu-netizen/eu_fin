@@ -60,6 +60,22 @@ public final class Models {
     }
   }
 
+  public record SddAllegation(
+      @NotBlank @Pattern(regexp = "NO_MANDATE|REVOKED_MANDATE|OTHER_UNAUTHORISED") String allegation) {}
+
+  public record SddDecision(
+      @NotBlank @Pattern(regexp = "CONFIRMED_UNAUTHORISED|AUTHORISATION_EVIDENCE_FOUND") String decision,
+      @Pattern(regexp = "[a-fA-F0-9]{64}") String evidenceHash) {}
+
+  public record SddDispute(String id, String paymentId, String claimant, String allegation,
+      String status, Instant createdAt, String reviewedBy, Instant reviewedAt, String evidenceHash) {}
+
+  public record SddRefund(String paymentId, String creditorId, BigDecimal amount,
+      BigDecimal recoveredAmount, BigDecimal outstandingAmount, String kind,
+      java.time.LocalDate debitDate, Instant createdAt) {}
+
+  public record SddRecovery(String id, String paymentId, BigDecimal amount, Instant createdAt) {}
+
   public record NewConsent(
       @NotBlank String accountId,
       @NotBlank @Size(max = 100) String tpp,

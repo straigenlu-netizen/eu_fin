@@ -329,17 +329,154 @@ public class BankService {
     return loadPayment(id, false);
   }
 
+  /** Payer reimbursement and recovery from the creditor are independent transactions. */
   @Transactional
   public Payment refund(Actor actor, String id) {
     Payment p = loadPayment(id, true);
-    lockAccounts(p.debtorId(), p.creditorId());
-    own(actor, loadAccount(p.debtorId(), false));
-    require(p, "SETTLED");
-    if (!"SDD_CORE".equals(p.scheme())
-        || clock.instant().isAfter(p.settledAt().plus(Duration.ofDays(56))))
-      throw BankError.invalid("REFUND_NOT_SUPPORTED");
-    reverse(p);
+    requireSddPayer(actor, p);
+    if (db.queryForObject("select count(*) from sdd_refund where payment_id=?", Long.class, id) > 0)
+      return p; // Replay remains safe even after the refund window expires.
+    creditSddRefund(p, "EIGHT_WEEK");
     return loadPayment(id, false);
+  }
+
+  private void requireSddPayer(Actor actor, Payment p) {
+    // An operations role must not bypass ownership on a payer request.
+    if (!loadAccount(p.debtorId(), false).ownerId().equals(actor.subject()))
+      throw new BankError("FORBIDDEN", 403);
+    if (!"SDD_CORE".equals(p.scheme())) throw BankError.invalid("SDD_ONLY");
+  }
+
+  private void creditSddRefund(Payment p, String kind) {
+    require(p, "SETTLED");
+    LocalDate debitDate = LocalDate.ofInstant(p.settledAt(), ZoneOffset.UTC);
+    LocalDate deadline = kind.equals("EIGHT_WEEK") ? debitDate.plusWeeks(8) : debitDate.plusMonths(13);
+    if (LocalDate.ofInstant(clock.instant(), ZoneOffset.UTC).isAfter(deadline))
+      throw BankError.invalid("REFUND_WINDOW_EXPIRED");
+    lockAccounts(p.debtorId(), p.creditorId());
+    db.update("insert into sdd_refund(payment_id,creditor_id,amount,kind,debit_date,created_at) values(?,?,?,?,?,?)",
+        p.id(), p.creditorId(), p.amount(), kind, java.sql.Date.valueOf(debitDate), clock.instant().atOffset(ZoneOffset.UTC));
+    db.update("update account set balance=balance+?,version=version+1 where id=?", p.amount(), p.debtorId());
+    journal("SDD_REFUND:" + p.id(), null, p.debtorId(), p.amount(), debitDate, "SDD_RECOVERY");
+    change(p.id(), "RETURNED", kind.equals("EIGHT_WEEK") ? "MD06" : "MD01");
+  }
+
+  private static final RowMapper<SddDispute> SDD_DISPUTE = (r, n) -> new SddDispute(
+      r.getString("id"), r.getString("payment_id"), r.getString("claimant"), r.getString("allegation"),
+      r.getString("status"), instant(r, "created_at"), r.getString("reviewed_by"),
+      instant(r, "reviewed_at"), r.getString("evidence_hash"));
+
+  private static final RowMapper<SddRefund> SDD_REFUND = (r, n) -> new SddRefund(
+      r.getString("payment_id"), r.getString("creditor_id"), r.getBigDecimal("amount"),
+      r.getBigDecimal("recovered_amount"), r.getBigDecimal("amount").subtract(r.getBigDecimal("recovered_amount")),
+      r.getString("kind"), r.getDate("debit_date").toLocalDate(), instant(r, "created_at"));
+
+  private static final RowMapper<SddRecovery> SDD_RECOVERY = (r, n) -> new SddRecovery(
+      r.getString("id"), r.getString("payment_id"), r.getBigDecimal("amount"), instant(r, "created_at"));
+
+  @Transactional
+  public SddDispute disputeSdd(Actor actor, String id, SddAllegation req) {
+    Payment p = loadPayment(id, true);
+    requireSddPayer(actor, p);
+    if (req == null || !Set.of("NO_MANDATE", "REVOKED_MANDATE", "OTHER_UNAUTHORISED")
+        .contains(req.allegation() == null ? "" : req.allegation())) throw BankError.invalid("INVALID_ALLEGATION");
+    var previous = db.query("select * from sdd_dispute where payment_id=?", SDD_DISPUTE, id);
+    if (!previous.isEmpty()) {
+      if (!previous.get(0).allegation().equals(req.allegation())) throw new BankError("IDEMPOTENCY_CONFLICT", 409);
+      return previous.get(0);
+    }
+    creditSddRefund(p, "UNAUTHORISED"); // Credit now; investigation must not delay reimbursement.
+    String caseId = id();
+    db.update("insert into sdd_dispute(id,payment_id,claimant,allegation,status,created_at) values(?,?,?,?,?,?)",
+        caseId, id, actor.subject(), req.allegation(), "REFUNDED_UNDER_REVIEW", clock.instant().atOffset(ZoneOffset.UTC));
+    auditSdd(actor.subject(), actor.subject(), "SDD_DISPUTE_OPENED");
+    return db.queryForObject("select * from sdd_dispute where id=?", SDD_DISPUTE, caseId);
+  }
+
+  @Transactional(readOnly = true)
+  public SddDispute sddDispute(Actor actor, String id) {
+    requireSddPayer(actor, loadPayment(id, false));
+    return db.query("select * from sdd_dispute where payment_id=?", SDD_DISPUTE, id).stream().findFirst()
+        .orElseThrow(() -> new BankError("DISPUTE_NOT_FOUND", 404));
+  }
+
+  @Transactional
+  public SddDispute decideSddDispute(Actor actor, String caseId, SddDecision req) {
+    operator(actor);
+    SddDispute claim = db.query("select * from sdd_dispute where id=? for update", SDD_DISPUTE, caseId)
+        .stream().findFirst().orElseThrow(() -> new BankError("DISPUTE_NOT_FOUND", 404));
+    Payment p = loadPayment(claim.paymentId(), false);
+    if (actor.subject().equals(claim.claimant()) || actor.subject().equals(loadAccount(p.creditorId(), false).ownerId()))
+      throw new BankError("SELF_REVIEW_FORBIDDEN", 403);
+    if (req == null || !Set.of("CONFIRMED_UNAUTHORISED", "AUTHORISATION_EVIDENCE_FOUND")
+        .contains(req.decision() == null ? "" : req.decision())) throw BankError.invalid("INVALID_DISPUTE_DECISION");
+    String evidence = req.evidenceHash() == null ? null : req.evidenceHash().toLowerCase(Locale.ROOT);
+    if ((evidence != null && !evidence.matches("[a-f0-9]{64}"))
+        || (req.decision().equals("AUTHORISATION_EVIDENCE_FOUND") && evidence == null))
+      throw BankError.invalid("EVIDENCE_REQUIRED");
+    if (!claim.status().equals("REFUNDED_UNDER_REVIEW")) {
+      if (claim.status().equals(req.decision()) && Objects.equals(claim.evidenceHash(), evidence)) return claim;
+      throw new BankError("DISPUTE_ALREADY_DECIDED", 409);
+    }
+    db.update("update sdd_dispute set status=?,reviewed_by=?,reviewed_at=?,evidence_hash=? where id=?",
+        req.decision(), actor.subject(), clock.instant().atOffset(ZoneOffset.UTC), evidence, caseId);
+    auditSdd(actor.subject(), claim.claimant(), "SDD_" + req.decision());
+    // Finding evidence is not permission to debit the payer again.
+    return db.queryForObject("select * from sdd_dispute where id=?", SDD_DISPUTE, caseId);
+  }
+
+  private void auditSdd(String actor, String subject, String action) {
+    db.update("insert into audit_log(id,actor,subject,action,occurred_at) values(?,?,?,?,?)",
+        id(), actor, subject, action, clock.instant().atOffset(ZoneOffset.UTC));
+  }
+
+  @Transactional(readOnly = true)
+  public List<SddDispute> sddDisputes(Actor actor, int page) {
+    operator(actor);
+    if (page < 0 || page > 10000) throw BankError.invalid("INVALID_PAGE");
+    return db.query("select * from sdd_dispute order by created_at,id limit 50 offset ?", SDD_DISPUTE, page * 50);
+  }
+
+  @Transactional(readOnly = true)
+  public List<SddRefund> sddRefunds(Actor actor, int page) {
+    operator(actor);
+    if (page < 0 || page > 10000) throw BankError.invalid("INVALID_PAGE");
+    return db.query("select * from sdd_refund order by created_at,payment_id limit 50 offset ?", SDD_REFUND, page * 50);
+  }
+
+  @Transactional
+  public SddRecovery recoverSddRefund(Actor actor, String paymentId, String key, BigDecimal rawAmount) {
+    operator(actor);
+    if (key == null || key.isBlank() || key.length() > 100) throw BankError.invalid("INVALID_IDEMPOTENCY_KEY");
+    BigDecimal amount = Rules.money(rawAmount);
+    Payment p = loadPayment(paymentId, true);
+    lockAccounts(p.debtorId(), p.creditorId());
+    if (actor.subject().equals(loadAccount(p.debtorId(), false).ownerId())
+        || actor.subject().equals(loadAccount(p.creditorId(), false).ownerId())) throw new BankError("SELF_RECOVERY_FORBIDDEN", 403);
+    var previous = db.query("select * from sdd_recovery where actor=? and idem_key=?",
+        SDD_RECOVERY,
+        actor.subject(), key);
+    if (!previous.isEmpty()) {
+      SddRecovery old = previous.get(0);
+      if (!old.paymentId().equals(paymentId) || old.amount().compareTo(amount) != 0)
+        throw new BankError("IDEMPOTENCY_CONFLICT", 409);
+      return old;
+    }
+    SddRefund refund = db.query("select * from sdd_refund where payment_id=? for update", SDD_REFUND, paymentId)
+        .stream().findFirst().orElseThrow(() -> new BankError("REFUND_NOT_FOUND", 404));
+    if (amount.compareTo(refund.outstandingAmount()) > 0) throw BankError.invalid("RECOVERY_EXCEEDS_OUTSTANDING");
+    if (loadAccount(p.creditorId(), false).available().compareTo(amount) < 0)
+      throw BankError.invalid("RECOVERY_LIQUIDITY_REQUIRED");
+    String recoveryId = id();
+    db.update("insert into sdd_recovery(id,payment_id,actor,idem_key,amount,created_at) values(?,?,?,?,?,?)",
+        recoveryId, paymentId, actor.subject(), key, amount, clock.instant().atOffset(ZoneOffset.UTC));
+    db.update("update account set balance=balance-?,version=version+1 where id=?", amount, p.creditorId());
+    db.update("update sdd_refund set recovered_amount=recovered_amount+? where payment_id=?", amount, paymentId);
+    journal("SDD_RECOVERY:" + recoveryId, p.creditorId(), null, amount,
+        LocalDate.ofInstant(clock.instant(), ZoneOffset.UTC), "SDD_RECOVERY");
+    event(paymentId, "RETURNED", "REFUND_RECOVERY");
+    auditSdd(actor.subject(), loadAccount(p.creditorId(), false).ownerId(), "SDD_REFUND_RECOVERED");
+    return db.queryForObject("select * from sdd_recovery where id=?", SDD_RECOVERY, recoveryId);
   }
 
   private void reverse(Payment p) {
@@ -363,21 +500,26 @@ public class BankService {
   }
 
   private void journal(String booking, String from, String to, BigDecimal amount) {
+    journal(booking, from, to, amount, LocalDate.ofInstant(clock.instant(), ZoneOffset.UTC), "TREASURY");
+  }
+
+  private void journal(String booking, String from, String to, BigDecimal amount,
+      LocalDate valueDate, String bankAccount) {
     Instant now = clock.instant();
     db.update(
-        "insert into ledger(id,booking_id,account_id,delta,booked_at) values(?,?,?,?,?)",
+        "insert into ledger(id,booking_id,account_id,delta,booked_at,value_date,bank_account) values(?,?,?,?,?,?,?)",
         id(),
         booking,
         from,
         amount.negate(),
-        now.atOffset(ZoneOffset.UTC));
+        now.atOffset(ZoneOffset.UTC), java.sql.Date.valueOf(valueDate), from == null ? bankAccount : null);
     db.update(
-        "insert into ledger(id,booking_id,account_id,delta,booked_at) values(?,?,?,?,?)",
+        "insert into ledger(id,booking_id,account_id,delta,booked_at,value_date,bank_account) values(?,?,?,?,?,?,?)",
         id(),
         booking,
         to,
         amount,
-        now.atOffset(ZoneOffset.UTC));
+        now.atOffset(ZoneOffset.UTC), java.sql.Date.valueOf(valueDate), to == null ? bankAccount : null);
   }
 
   private void change(String id, String status, String reason) {
@@ -437,7 +579,7 @@ public class BankService {
     account(actor, id);
     return dev.eufin.util.SqlRows.normalized(
         db.queryForList(
-            "select booking_id,delta,booked_at from ledger where account_id=? order by"
+            "select booking_id,delta,booked_at,value_date from ledger where account_id=? order by"
                 + " booked_at,id",
             id));
   }

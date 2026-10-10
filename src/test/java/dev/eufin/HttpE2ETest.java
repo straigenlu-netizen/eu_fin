@@ -27,6 +27,10 @@ class HttpE2ETest {
   final HttpClient client = HttpClient.newHttpClient();
 
   String token(String subject, String scopes, Instant expires, String audience) {
+    return token(subject, scopes, expires, audience, true);
+  }
+
+  String token(String subject, String scopes, Instant expires, String audience, boolean mfa) {
     var encoder =
         new NimbusJwtEncoder(
             new ImmutableSecret<>(
@@ -42,7 +46,7 @@ class HttpE2ETest {
             .issuedAt(expires.minusSeconds(600))
             .expiresAt(expires)
             .claim("scope", scopes)
-            .claim("amr", java.util.List.of("mfa"))
+            .claim("amr", mfa ? java.util.List.of("mfa") : java.util.List.of("pwd"))
             .build();
     return encoder
         .encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), claims))
@@ -84,6 +88,9 @@ class HttpE2ETest {
             "outbox",
             "payment_event",
             "ledger",
+            "sdd_dispute",
+            "sdd_recovery",
+            "sdd_refund",
             "payment",
             "mandate",
             "consent",
@@ -207,6 +214,53 @@ class HttpE2ETest {
                 .statusCode())
         .isEqualTo(400);
     assertThat(request("GET", "/actuator/health", null, null, null).statusCode()).isEqualTo(200);
+  }
+
+  @Test
+  void sddDisputeHttpWorkflowEnforcesPayerScopesMfaAndEvidence() throws Exception {
+    String payer = token("alice", "bank.pay"), merchant = token("bob", "bank.pay"),
+        ops = token("ops", "bank.ops"), funder = token("ops", "bank.pay bank.ops");
+    enroll(payer, "alice"); enroll(merchant, "bob");
+    String a = ok(request("POST", "/api/v1/accounts", payer,
+        Map.of("iban", "DE89370400440532013000", "name", "Alice"), null)).get("id").asText();
+    String b = ok(request("POST", "/api/v1/accounts", merchant,
+        Map.of("iban", "NL91ABNA0417164300", "name", "Bob"), null)).get("id").asText();
+    ok(request("POST", "/api/v1/ops/accounts/" + a + "/fund", funder, Map.of("amount", 100), "sdd-fund"));
+    String mandate = ok(request("POST", "/api/v1/mandates", payer,
+        Map.of("debtorId", a, "creditorId", b, "maxAmount", 20, "validUntil", "2030-01-01"), null)).get("id").asText();
+    String p = ok(request("POST", "/api/v1/payments", merchant,
+        Map.of("debtorId", a, "creditorId", b, "amount", 10, "scheme", "SDD_CORE", "endToEndId", "HTTP-SDD",
+            "creditorName", "Bob", "mandateId", mandate), "http-sdd")).get("id").asText();
+    for (String action : List.of("SCREEN", "CLEAR", "SETTLE"))
+      ok(request("POST", "/api/v1/ops/payments/" + p + "/transitions", ops, Map.of("action", action), null));
+    String path = "/api/v1/payments/" + p + "/sdd-dispute";
+    assertThat(request("POST", path, null, Map.of("allegation", "NO_MANDATE"), null).statusCode()).isEqualTo(401);
+    assertThat(request("POST", path, merchant, Map.of("allegation", "NO_MANDATE"), null).statusCode()).isEqualTo(403);
+    assertThat(request("POST", path, payer, Map.of("allegation", "INVALID"), null).statusCode()).isEqualTo(400);
+    JsonNode claim = ok(request("POST", path, payer, Map.of("allegation", "NO_MANDATE"), null));
+    assertThat(claim.get("status").asText()).isEqualTo("REFUNDED_UNDER_REVIEW");
+    assertThat(ok(request("POST", path, payer, Map.of("allegation", "NO_MANDATE"), null)).get("id").asText())
+        .isEqualTo(claim.get("id").asText());
+    assertThat(request("GET", path, merchant, null, null).statusCode()).isEqualTo(403);
+    assertThat(request("GET", "/api/v1/ops/sdd-disputes", payer, null, null).statusCode()).isEqualTo(403);
+    String noMfa = token("ops", "bank.ops", Instant.now().plusSeconds(300), "eu-fin", false);
+    assertThat(request("GET", "/api/v1/ops/sdd-disputes", noMfa, null, null).statusCode()).isEqualTo(403);
+    assertThat(ok(request("GET", "/api/v1/ops/sdd-disputes", ops, null, null)).size()).isEqualTo(1);
+    String review = "/api/v1/ops/sdd-disputes/" + claim.get("id").asText() + "/decision";
+    assertThat(request("POST", review, token("alice", "bank.ops"),
+        Map.of("decision", "CONFIRMED_UNAUTHORISED"), null).statusCode()).isEqualTo(403);
+    assertThat(request("POST", review, ops, Map.of("decision", "AUTHORISATION_EVIDENCE_FOUND"), null).statusCode()).isEqualTo(422);
+    assertThat(ok(request("POST", review, ops, Map.of("decision", "AUTHORISATION_EVIDENCE_FOUND", "evidenceHash", "a".repeat(64)), null))
+        .get("status").asText()).isEqualTo("AUTHORISATION_EVIDENCE_FOUND");
+    String recover = "/api/v1/ops/sdd-refunds/" + p + "/recoveries";
+    assertThat(request("POST", recover, ops, Map.of("amount", 4), null).statusCode()).isEqualTo(400);
+    JsonNode recovery = ok(request("POST", recover, ops, Map.of("amount", 4), "recover"));
+    assertThat(ok(request("POST", recover, ops, Map.of("amount", 4), "recover")).get("id").asText())
+        .isEqualTo(recovery.get("id").asText());
+    assertThat(ok(request("GET", "/api/v1/ops/sdd-refunds", ops, null, null)).get(0).get("outstandingAmount").decimalValue())
+        .isEqualByComparingTo("6");
+    assertThat(ok(request("GET", "/api/v1/accounts/" + a, payer, null, null)).get("balance").decimalValue())
+        .isEqualByComparingTo("100");
   }
 
   void enroll(String token, String subject) throws Exception {

@@ -91,6 +91,37 @@ public class BankController {
     return bank.refund(actor(a), id);
   }
 
+  @PostMapping("/payments/{id}/sdd-dispute")
+  public SddDispute disputeSdd(Authentication a, @PathVariable String id, @Valid @RequestBody SddAllegation r) {
+    return bank.disputeSdd(actor(a), id, r);
+  }
+
+  @GetMapping("/payments/{id}/sdd-dispute")
+  public SddDispute sddDispute(Authentication a, @PathVariable String id) {
+    return bank.sddDispute(actor(a), id);
+  }
+
+  @GetMapping("/ops/sdd-disputes")
+  public List<SddDispute> sddDisputes(Authentication a, @RequestParam(defaultValue = "0") int page) {
+    return bank.sddDisputes(actor(a), page);
+  }
+
+  @PostMapping("/ops/sdd-disputes/{id}/decision")
+  public SddDispute decideSddDispute(Authentication a, @PathVariable String id, @Valid @RequestBody SddDecision r) {
+    return bank.decideSddDispute(actor(a), id, r);
+  }
+
+  @GetMapping("/ops/sdd-refunds")
+  public List<SddRefund> sddRefunds(Authentication a, @RequestParam(defaultValue = "0") int page) {
+    return bank.sddRefunds(actor(a), page);
+  }
+
+  @PostMapping("/ops/sdd-refunds/{id}/recoveries")
+  public SddRecovery recoverSddRefund(Authentication a, @PathVariable String id,
+      @RequestHeader("Idempotency-Key") String key, @Valid @RequestBody Amount r) {
+    return bank.recoverSddRefund(actor(a), id, key, r.amount());
+  }
+
   @GetMapping("/accounts/{id}/statement")
   public Object statement(Authentication a, @PathVariable String id) {
     return bank.statement(actor(a), id);

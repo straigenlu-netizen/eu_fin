@@ -420,7 +420,10 @@ public class IsoService {
                 + tag("OrgnlEndToEndId", p.endToEndId())
                 + "<RtrdIntrBkSttlmAmt Ccy=\"EUR\">"
                 + amount
-                + "</RtrdIntrBkSttlmAmt><RtrRsnInf><Rsn><Prtry>LAB_RETURN</Prtry></Rsn></RtrRsnInf></TxInf></PmtRtr>");
+                + "</RtrdIntrBkSttlmAmt><RtrRsnInf><Rsn>"
+                + (p.scheme().equals("SDD_CORE") && Set.of("MD06", "MD01").contains(p.reason() == null ? "" : p.reason())
+                    ? tag("Cd", p.reason()) : "<Prtry>LAB_RETURN</Prtry>")
+                + "</Rsn></RtrRsnInf></TxInf></PmtRtr>");
       }
       default -> throw BankError.invalid("UNSUPPORTED_MESSAGE");
     };
@@ -439,7 +442,9 @@ public class IsoService {
           .append(n.abs().toPlainString())
           .append("</Amt>")
           .append(tag("CdtDbtInd", n.signum() < 0 ? "DBIT" : "CRDT"))
-          .append("<Sts><Cd>BOOK</Cd></Sts><BkTxCd><Prtry><Cd>LAB</Cd></Prtry></BkTxCd></Ntry>");
+          .append("<Sts><Cd>BOOK</Cd></Sts><ValDt>")
+          .append(tag("Dt", l.get("value_date")))
+          .append("</ValDt><BkTxCd><Prtry><Cd>LAB</Cd></Prtry></BkTxCd></Ntry>");
     }
     return document(
         "camt.053.001.08",

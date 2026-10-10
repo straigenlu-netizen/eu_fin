@@ -75,5 +75,18 @@ class PostgresKafkaTest {
         .untilAsserted(
             () -> assertThat(views.findById(p.id()).orElseThrow().status).isEqualTo("SETTLED"));
     assertThat(bank.account(alice, a.id()).balance()).isEqualByComparingTo("90");
+    String mandate = bank.mandate(alice, new NewMandate(a.id(), b.id(), java.time.LocalDate.of(2030, 1, 1), new BigDecimal("20")));
+    var sdd = bank.initiate(bob, "pg-sdd", new Initiate(a.id(), b.id(), new BigDecimal("10"), "SDD_CORE", "PG-SDD", "Bob", mandate));
+    for (String action : new String[] {"SCREEN", "CLEAR", "SETTLE"}) bank.transition(ops, sdd.id(), action);
+    bank.refund(alice, sdd.id());
+    assertThat(bank.account(alice, a.id()).balance()).isEqualByComparingTo("90");
+    assertThat(bank.sddRefunds(ops, 0).get(0).outstandingAmount()).isEqualByComparingTo("10");
+    assertThat(relay.relay()).isEqualTo(7);
+    await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+        assertThat(views.findById(sdd.id()).orElseThrow().status).isEqualTo("RETURNED"));
+    bank.recoverSddRefund(ops, sdd.id(), "pg-recover", new BigDecimal("4"));
+    assertThat(bank.sddRefunds(ops, 0).get(0).outstandingAmount()).isEqualByComparingTo("6");
+    assertThat(relay.relay()).isEqualTo(1);
+
   }
 }

@@ -48,6 +48,8 @@ docker compose -f compose.yml -f compose.oidc.yml up --build
 
 Пять клиентов: Alice Demo, Bob Example, Carla Sample, Daniel Demo, Eva Example. Все данные и деньги вымышленные. Персональные профили и заявки шифруются AES-256-GCM; имена владельцев присутствуют также в операционной таблице счетов и XML-выписках — это не шифрование всей базы.
 
+Возвраты SDD, споры и отдельное взыскание: [SDD-REFUNDS.md](docs/SDD-REFUNDS.md). В кабинете добавлены вкладки Refunds & disputes и Payment operations (bank.ops).
+
 ## Что изучать дальше
 
 1. [Архитектура и транзакции](docs/ARCHITECTURE.md).

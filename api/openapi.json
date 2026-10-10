@@ -20,6 +20,16 @@
       "post": {
         "operationId": "openAccount",
         "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -86,16 +96,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Account"
                 }
               }
             }
@@ -116,76 +116,6 @@
       "get": {
         "operationId": "listAccounts",
         "responses": {
-          "400": {
-            "description": "Malformed input",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Invalid or missing JWT",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Scope or ownership denied",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict or invalid transition",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Business validation failed",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Clearing circuit open",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
           "200": {
             "description": "Success",
             "content": {
@@ -198,15 +128,7 @@
                 }
               }
             }
-          }
-        },
-        "parameters": []
-      }
-    },
-    "/api/v1/accounts/{id}": {
-      "get": {
-        "operationId": "getAccount",
-        "responses": {
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -276,13 +198,91 @@
                 }
               }
             }
-          },
+          }
+        },
+        "parameters": []
+      }
+    },
+    "/api/v1/accounts/{id}": {
+      "get": {
+        "operationId": "getAccount",
+        "responses": {
           "200": {
             "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing JWT",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or ownership denied",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict or invalid transition",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business validation failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Clearing circuit open",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -305,6 +305,16 @@
       "post": {
         "operationId": "fundAccount",
         "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -371,16 +381,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Account"
                 }
               }
             }
@@ -422,6 +422,16 @@
       "post": {
         "operationId": "initiatePayment",
         "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -488,16 +498,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Payment"
                 }
               }
             }
@@ -530,6 +530,16 @@
       "get": {
         "operationId": "getPayment",
         "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -596,16 +606,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Payment"
                 }
               }
             }
@@ -628,6 +628,19 @@
       "get": {
         "operationId": "paymentEvents",
         "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Event"
+                  }
+                }
+              }
+            }
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -694,19 +707,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Event"
-                  }
                 }
               }
             }
@@ -729,6 +729,16 @@
       "post": {
         "operationId": "transitionPayment",
         "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -795,16 +805,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Payment"
                 }
               }
             }
@@ -837,6 +837,16 @@
       "post": {
         "operationId": "refundDirectDebit",
         "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -903,16 +913,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Payment"
                 }
               }
             }
@@ -928,13 +928,27 @@
               "format": "uuid"
             }
           }
-        ]
+        ],
+        "description": "SDD Core payer only; unconditional request through the last day of eight weeks after debit date (UTC lab policy). Replays cannot credit twice. Recovery from the creditor is separate."
       }
     },
     "/api/v1/accounts/{id}/statement": {
       "get": {
         "operationId": "ledgerStatement",
         "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LedgerEntry"
+                  }
+                }
+              }
+            }
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -1001,19 +1015,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/LedgerEntry"
-                  }
                 }
               }
             }
@@ -1036,6 +1037,16 @@
       "post": {
         "operationId": "createMandate",
         "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Id"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -1102,16 +1113,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Id"
                 }
               }
             }
@@ -1134,6 +1135,9 @@
       "delete": {
         "operationId": "revokeMandate",
         "responses": {
+          "200": {
+            "description": "Success"
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -1203,9 +1207,6 @@
                 }
               }
             }
-          },
-          "200": {
-            "description": "Success"
           }
         },
         "parameters": [
@@ -1225,6 +1226,16 @@
       "post": {
         "operationId": "createConsent",
         "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Id"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -1291,16 +1302,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Id"
                 }
               }
             }
@@ -1323,6 +1324,9 @@
       "delete": {
         "operationId": "revokeConsent",
         "responses": {
+          "200": {
+            "description": "Success"
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -1392,9 +1396,6 @@
                 }
               }
             }
-          },
-          "200": {
-            "description": "Success"
           }
         },
         "parameters": [
@@ -1414,6 +1415,16 @@
       "get": {
         "operationId": "consentedAccount",
         "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -1480,16 +1491,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Account"
                 }
               }
             }
@@ -1511,6 +1512,19 @@
       "post": {
         "operationId": "reconcile",
         "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReconcileResult"
+                  }
+                }
+              }
+            }
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -1577,19 +1591,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ReconcileResult"
-                  }
                 }
               }
             }
@@ -1615,6 +1616,16 @@
       "post": {
         "operationId": "importPain001",
         "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -1681,16 +1692,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Payment"
                 }
               }
             }
@@ -1723,6 +1724,16 @@
       "get": {
         "operationId": "exportIso",
         "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -1789,16 +1800,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/xml": {
-                "schema": {
-                  "type": "string"
                 }
               }
             }
@@ -1837,6 +1838,16 @@
       "get": {
         "operationId": "exportStatement",
         "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -1903,16 +1914,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/xml": {
-                "schema": {
-                  "type": "string"
                 }
               }
             }
@@ -1935,6 +1936,16 @@
       "post": {
         "operationId": "previewMt103",
         "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MtPreview"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Malformed input",
             "content": {
@@ -2001,16 +2012,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MtPreview"
                 }
               }
             }
@@ -2541,11 +2542,594 @@
           "200": {
             "description": "Match with local creditor ID"
           },
-          "422": {
-            "description": "No match"
-          },
           "401": {
             "description": "Invalid authentication"
+          },
+          "422": {
+            "description": "No match"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{id}/sdd-dispute": {
+      "post": {
+        "operationId": "reportUnauthorisedSdd",
+        "description": "Payer only; immediate virtual reimbursement within 13 calendar months; investigation does not delay credit. Idempotency is per payment; changing an allegation conflicts.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SddDispute"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing JWT",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or ownership denied",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict or invalid transition",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business validation failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SddAllegation"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "getPayerSddDispute",
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SddDispute"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing JWT",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or ownership denied",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict or invalid transition",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business validation failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/ops/sdd-disputes": {
+      "get": {
+        "operationId": "listSddDisputes",
+        "description": "bank.ops with MFA; paginated.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SddDispute"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing JWT",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or ownership denied",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict or invalid transition",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business validation failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000,
+              "default": 0
+            },
+            "description": "Zero based page, 50 entries per page."
+          }
+        ]
+      }
+    },
+    "/api/v1/ops/sdd-disputes/{id}/decision": {
+      "post": {
+        "operationId": "decideSddDispute",
+        "description": "bank.ops with MFA; parties cannot review their own dispute. Finding evidence does not permit an automatic debit of the payer.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SddDispute"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing JWT",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or ownership denied",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict or invalid transition",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business validation failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SddDecision"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ops/sdd-refunds": {
+      "get": {
+        "operationId": "listSddRefundReceivables",
+        "description": "bank.ops with MFA; paginated.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SddRefund"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing JWT",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or ownership denied",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict or invalid transition",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business validation failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000,
+              "default": 0
+            },
+            "description": "Zero based page, 50 entries per page."
+          }
+        ]
+      }
+    },
+    "/api/v1/ops/sdd-refunds/{id}/recoveries": {
+      "post": {
+        "operationId": "recoverVirtualSddReceivable",
+        "description": "id is the payment ID. Operator-only virtual recovery from the creditor account; requires authority under a real contract before production use. Payer reimbursement is independent.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SddRecovery"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing JWT",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or ownership denied",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict or invalid transition",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business validation failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Amount"
+              }
+            }
           }
         }
       }
@@ -2915,6 +3499,10 @@
           "booked_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "value_date": {
+            "type": "string",
+            "format": "date"
           }
         },
         "required": [
@@ -3278,6 +3866,167 @@
           "suspended",
           "version"
         ]
+      },
+      "SddAllegation": {
+        "type": "object",
+        "properties": {
+          "allegation": {
+            "type": "string",
+            "enum": [
+              "NO_MANDATE",
+              "REVOKED_MANDATE",
+              "OTHER_UNAUTHORISED"
+            ]
+          }
+        },
+        "required": [
+          "allegation"
+        ],
+        "additionalProperties": false
+      },
+      "SddDecision": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "CONFIRMED_UNAUTHORISED",
+              "AUTHORISATION_EVIDENCE_FOUND"
+            ]
+          },
+          "evidenceHash": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$",
+            "description": "Digest of external evidence; mandatory if authorisation evidence was found."
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "additionalProperties": false
+      },
+      "SddDispute": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "paymentId": {
+            "type": "string"
+          },
+          "claimant": {
+            "type": "string"
+          },
+          "allegation": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "REFUNDED_UNDER_REVIEW",
+              "CONFIRMED_UNAUTHORISED",
+              "AUTHORISATION_EVIDENCE_FOUND"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reviewedBy": {
+            "type": "string"
+          },
+          "reviewedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "evidenceHash": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "paymentId",
+          "claimant",
+          "allegation",
+          "status",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "SddRefund": {
+        "type": "object",
+        "properties": {
+          "paymentId": {
+            "type": "string"
+          },
+          "creditorId": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "multipleOf": 0.01
+          },
+          "recoveredAmount": {
+            "type": "number",
+            "multipleOf": 0.01
+          },
+          "outstandingAmount": {
+            "type": "number",
+            "multipleOf": 0.01
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "EIGHT_WEEK",
+              "UNAUTHORISED"
+            ]
+          },
+          "debitDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "paymentId",
+          "creditorId",
+          "amount",
+          "recoveredAmount",
+          "outstandingAmount",
+          "kind",
+          "debitDate",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "SddRecovery": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "paymentId": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "multipleOf": 0.01
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "paymentId",
+          "amount",
+          "createdAt"
+        ],
+        "additionalProperties": false
       }
     }
   }
