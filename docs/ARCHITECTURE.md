@@ -1,61 +1,61 @@
-# Как устроен учебный банк
+# How the learning bank works
 
-Это модульное Spring Boot приложение, а не набор независимо развёртываемых микросервисов. Такой выбор позволяет сначала понять банковские инварианты: деньги, блокировки, состояние платежа и согласованность событий. Модули можно разделить позднее, сохранив контракты и явные границы транзакций.
+This is a modular Spring Boot application, not independently deployed microservices. It first makes the banking invariants visible: money, locks, payment state and event consistency. Modules can be separated later while preserving contracts and explicit transaction boundaries.
 
 ```mermaid
 flowchart TD
-  UI["Кабинеты клиента и сотрудника"] --> SEC["JWT, роли, MFA и лимиты"]
+  UI["Customer and staff portals"] --> SEC["JWT, roles, MFA and limits"]
   SEC --> C["CustomerService"]
   SEC --> B["BankService"]
-  C --> DB["Профили и аудит"]
-  B --> TX["Счета, ledger, события и outbox"]
+  C --> DB["Profiles and audit"]
+  B --> TX["Accounts, ledger, events and outbox"]
   TX --> R["OutboxRelay"]
   R --> K["Kafka"]
-  K --> I["Inbox и read model"]
-  K --> S["Kafka Streams: статистика"]
+  K --> I["Inbox and read model"]
+  K --> S["Kafka Streams statistics"]
 ```
 
-## Командная транзакция
+## Command transaction
 
-Деньги представлены `BigDecimal` с двумя десятичными знаками. `balance` — учётный остаток, `held` — резерв, доступно `balance − held`. Инициация проверяет клиента, KYC, приостановку, схему, владельца счёта, имя получателя и доступную сумму. Она резервирует деньги, но не переводит их окончательно.
+Money uses `BigDecimal` with two decimal places. `balance` is the booked balance, `held` is the reservation, and available funds are `balance - held`. Initiation checks the customer, KYC, suspension, scheme, account ownership, payee name and available amount. It reserves funds without completing a transfer.
 
-При settlement списание, зачисление, две противоположные проводки, смена состояния, запись истории и outbox совершаются в одной транзакции. Ошибка откатывает всё. Сумма проводок по booking равна нулю. Лабораторное пополнение имеет отдельную встречную treasury-проводку; это не входящий межбанковский расчёт.
+At settlement, the debit, credit, two opposing postings, state change, history and outbox are committed in one transaction. Any failure rolls everything back. Postings for one booking sum to zero. Lab funding has an opposing treasury posting; it is not an incoming interbank settlement.
 
-Профили блокируются в порядке subject, счета — в порядке ID. Такой порядок уменьшает риск deadlock при одновременных встречных переводах. `SELECT FOR UPDATE` защищает остаток от параллельного расходования. Для контактов используется optimistic version: устаревшее обновление получает 409 вместо тихого затирания нового значения.
+Profiles are locked in subject order and accounts in ID order. This reduces deadlock risk for concurrent transfers in opposite directions. `SELECT FOR UPDATE` protects balances against concurrent spending. Contact updates use an optimistic version: stale changes return 409 instead of overwriting a newer value.
 
-`Idempotency-Key` привязан к инициатору и отпечатку запроса. Точная повторная команда возвращает прежний платёж; другой запрос с тем же ключом конфликтует. Ключ нужен при таймауте HTTP: клиент не знает, успел ли сервер выполнить команду. Финальное состояние проверяют по ID платежа, а не создают новый перевод.
+`Idempotency-Key` is bound to the actor and request fingerprint. An identical retry returns the original payment; another payload with the same key conflicts. After an HTTP timeout the client may not know whether the command succeeded. It should check the payment ID rather than create another transfer.
 
-## Состояния платежа
+## Payment states
 
 ```mermaid
 stateDiagram-v2
   [*] --> VALIDATED
   VALIDATED --> ROUTED: screening
-  VALIDATED --> REJECTED: screening отказ
-  VALIDATED --> TIMED_OUT: истёк instant deadline
+  VALIDATED --> REJECTED: screening rejection
+  VALIDATED --> TIMED_OUT: instant deadline expired
   ROUTED --> CLEARED: clearing
-  ROUTED --> TIMED_OUT: истёк deadline
+  ROUTED --> TIMED_OUT: deadline expired
   CLEARED --> SETTLED: settlement
-  CLEARED --> TIMED_OUT: истёк deadline
-  SETTLED --> RECALL_REQUESTED: запрос отзыва
-  RECALL_REQUESTED --> RETURNED: оператор возврата
-  SETTLED --> RETURNED: допустимый возврат
+  CLEARED --> TIMED_OUT: deadline expired
+  SETTLED --> RECALL_REQUESTED: recall request
+  RECALL_REQUESTED --> RETURNED: operator return
+  SETTLED --> RETURNED: eligible return
 ```
 
-В истории также есть промежуточные события RECEIVED и SCREENED. Точный список переходов задаёт `BankService.transition`, а диаграмма показывает основные ветви. Отказ или timeout освобождает резерв. Возврат создаёт обратные проводки и требует достаточного доступного остатка получателя. Recall после settlement — запрос, а не автоматическая отмена уже завершённого расчёта.
+History also contains RECEIVED and SCREENED events. `BankService.transition` defines the exact transitions; this diagram shows the main branches. Rejection or timeout releases the reservation. A normal transfer return creates opposing postings and requires sufficient available recipient funds. SDD refunds have separate bank-funded credit and recovery rules; see [SDD-REFUNDS.md](SDD-REFUNDS.md). A recall after settlement is a request, not automatic cancellation of completed settlement.
 
-`PaymentWorker` включается только явным флагом `BANK_AUTO_CLEARING_ENABLED=true`. Он моделирует локальный успешный цикл; scheduler истечения instant deadlines работает отдельно. Реальный платежный адаптер должен обрабатывать внешний результат, неизвестный outcome, повторы и статусы схемы.
+`PaymentWorker` requires explicit `BANK_AUTO_CLEARING_ENABLED=true`. It simulates a successful local lifecycle; instant deadline expiry has a separate scheduler. A real adapter must handle external outcomes, unknown results, retries and scheme statuses.
 
-## События и CQRS
+## Events and CQRS
 
-Outbox фиксирует намерение отправить событие в той же транзакции, что и деньги. Relay публикует и только затем отмечает доставку. Возможен повтор после сбоя, поэтому гарантия — at least once. Inbox хранит event ID, потребитель блокирует платёж и обновляет проекцию только при более новом sequence. Читать удобно из JPA read model, писать — через явные SQL-команды и блокировки.
+The outbox records publication intent in the same transaction as the money movement. The relay publishes first and marks delivery afterwards. A crash can cause a retry, so delivery is at least once. The inbox stores event IDs; the consumer locks the payment and updates its projection only for a newer sequence. Reads use a JPA read model, while commands use explicit SQL and locks.
 
-Kafka key — payment ID: события одного платежа попадают в одну partition. Статистика Streams использует последнее состояние платежа и не считает старый повтор новым платежом. Опционально включена обработка exactly-once-v2; она не делает HTTP/ledger/внешние платежные сети одной атомарной транзакцией.
+Kafka keys are payment IDs, keeping one payment's events in one partition. Streams statistics use the latest payment state and do not treat an old retry as a new payment. Optional exactly-once-v2 processing does not make HTTP, the ledger and external payment networks one atomic transaction.
 
-Journal здесь не полноценный event sourcing: основное состояние хранится в SQL, события дают аудит и проекции. Saga реализована как управляемый жизненный цикл и компенсация возвратом внутри одной системы. Межсервисный saga orchestrator не реализован.
+The journal is not full event sourcing: primary state lives in SQL and events support audit and projections. The saga is a managed lifecycle with return compensation inside one system. A distributed saga orchestrator is not implemented.
 
-Schema Registry опционально регистрирует JSON schema. Payload — обычный JSON с schema ID в Kafka header; это не стандартный Confluent wire format. Circuit breaker защищает учебную границу clearing; настоящего внешнего сетевого сервиса нет.
+Optional Schema Registry integration registers a JSON schema. Payloads are regular JSON with a schema ID in a Kafka header, not the standard Confluent wire format. The circuit breaker protects a simulated clearing boundary; no real external clearing service is connected.
 
-## Файлы для чтения
+## Reading order
 
-Начать с `domain/BankService.java`, затем миграции V1/V2, `customers/CustomerService.java`, `events/OutboxRelay.java`, `events/EventConsumer.java`, `events/PaymentTopology.java`, `security/SecurityConfig.java`, `iso/IsoService.java`. Tests показывают как нормальный путь, так и отказные сценарии.
+Start with `domain/BankService.java`, migrations V1-V5, `customers/CustomerService.java`, `events/OutboxRelay.java`, `events/EventConsumer.java`, `events/PaymentTopology.java`, `security/SecurityConfig.java` and `iso/IsoService.java`. Tests illustrate successful and failure scenarios.

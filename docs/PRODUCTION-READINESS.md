@@ -1,18 +1,18 @@
-# Обязательные требования к промышленной версии
+# Mandatory production requirements
 
-Пользователь требует промышленной безопасности и соответствия применимым SEPA и ISO 20022 стандартам. Это целевой критерий приёмки; текущая версия его пока не выполняет. Нельзя выдавать учебный механизм за сертифицированную интеграцию.
+Production security and conformance with applicable SEPA and ISO 20022 standards are acceptance targets. The current version does not yet meet them. A learning mechanism must not be presented as a certified integration.
 
-| Область | Обязательный результат | Доказательство приёмки |
+| Area | Required outcome | Acceptance evidence |
 |---|---|---|
-| SEPA SCT/SCT Inst/SDD Core | Реализация применимых rulebooks и usage guidelines с фиксированными версиями | Матрица правил, положительные/отказные схемные тесты, проверка участником/партнёром |
-| ISO 20022 | XML + семантические правила выбранных схем; полноценные статусы и R-transactions | XSD, scheme validators, interoperability fixtures, нет тихой потери полей |
-| VOP/SCA | Реальный канал проверки получателя и strong customer authentication, dynamic linking | Интеграционные и security-тесты с провайдером |
-| Межбанковский расчёт | Подключение через банк/PSP к выбранным каналам, ликвидность, unknown outcome и reconciliation | Sandbox conformance и операционные сценарии участника |
-| KYC/AML/санкции | Проверенные источники данных, мониторинг, case management и ручное расследование | Контрактные тесты провайдеров и утверждённые процедуры |
-| Ключи и доступ | KMS/HSM, ротация, least privilege, secrets manager, TLS/mTLS, Kafka ACL | Независимый аудит, penetration test, проверка отзыва и ротации |
-| Деньги и устойчивость | Производственная БД, восстановление, высокая доступность, защита от дубликатов и потери данных | PostgreSQL/concurrency, fault injection, backup restore, длительные load/soak тесты |
-| DORA/GDPR | Регламенты инцидентов, retention, контроль поставщиков, права субъектов | Организационная и юридическая проверка применимости |
+| SEPA SCT/SCT Inst/SDD Core | Applicable rulebooks and usage guidelines with pinned versions | Rule matrix, positive/negative scheme tests and participant/partner validation |
+| ISO 20022 | XML and scheme semantics, complete statuses and R-transactions | XSD, scheme validators, interoperability fixtures and no silent field loss |
+| VOP/SCA | Real payee verification and strong customer authentication with dynamic linking | Provider integration and security tests |
+| Interbank settlement | Bank/PSP connectivity, liquidity, unknown outcomes and reconciliation | Sandbox conformance and participant operating scenarios |
+| KYC/AML/sanctions | Verified data sources, monitoring, case management and human investigation | Provider contract tests and approved procedures |
+| Keys and access | KMS/HSM, rotation, least privilege, secret manager, TLS/mTLS and Kafka ACL | Independent audit, pentest and revocation/rotation tests |
+| Money and resilience | Production database, recovery, high availability, duplicate/loss protection | PostgreSQL concurrency, fault injection, backup restore and sustained load/soak tests |
+| DORA/GDPR | Incident procedures, retention, supplier controls and data subject rights | Organisational and legal applicability assessment |
 
-Для выбора точного профиля нужны: роль организации (банк/PSP/учебный проект), применимые схемы и каналы, банк-партнёр/провайдеры, sandbox-доступ, целевые SLA и инфраструктура. Секреты и документы клиентов не передавать в чат или репозиторий. Реальные подключения и подтверждение промышленной готовности требуют участия соответствующих специалистов и провайдеров.
+Selecting the exact profile requires the organisation's role (bank/PSP/learning project), applicable schemes and channels, partner bank/providers, sandbox access, target SLAs and infrastructure. Do not supply secrets or customer documents in chat or the repository. Real connectivity and production acceptance require appropriate specialists and providers.
 
-Этот документ фиксирует незавершённые обязательства. Он не является сертификатом, юридическим заключением или разрешением использовать приложение с реальными деньгами.
+This document records outstanding obligations. It is not a certificate, legal opinion or permission to use the application with real money.

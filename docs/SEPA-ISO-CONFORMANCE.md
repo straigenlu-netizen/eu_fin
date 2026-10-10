@@ -1,50 +1,50 @@
-# Проверка SEPA / ISO 20022
+# SEPA / ISO 20022 assessment
 
-Дата аудита: 2026-10-10. Итог: **полное соответствие SEPA не подтверждено; промышленный запуск запрещён до закрытия перечисленных пробелов**. Это инженерная оценка исходников и автоматических тестов, не заключение EPC, банка, регулятора или независимого аудитора.
+Assessment date: 2026-10-10. Result: **full SEPA conformance is not confirmed; production launch must wait until the listed gaps are closed**. This is an engineering assessment of source code and automated tests, not an opinion from EPC, a bank, regulator or independent auditor.
 
-## Нормативная база
+## Standards baseline
 
-Проверены текущие страницы EPC: rulebooks 2025 v1.2 (с 30 сентября 2026), implementation guidelines 2025 v1.0 / ISO 2019:
+The assessment checked EPC rulebooks 2025 v1.2 (effective 30 September 2026), implementation guidelines 2025 v1.0 and ISO 2019:
 
 - [SCT](https://www.europeanpaymentscouncil.eu/what-we-do/epc-payment-schemes/sepa-credit-transfer-sct/sepa-credit-transfer-rulebook-and)
 - [SCT Inst](https://www.europeanpaymentscouncil.eu/what-we-do/epc-payment-schemes/sepa-instant-credit-transfer-sct-inst/sepa-instant-credit-transfer)
 - [SDD Core](https://www.europeanpaymentscouncil.eu/what-we-do/epc-payment-schemes/sepa-direct-debit-sdd/sepa-direct-debit-core-rulebook-and)
 - [SCT Inst Inter-PSP IG](https://www.europeanpaymentscouncil.eu/document-library/implementation-guidelines/sepa-instant-credit-transfer-inter-psp-implementation-2)
-- [Правила идентификаторов со слешами](https://www.europeanpaymentscouncil.eu/document-library/guidance-documents/clarification-paper-use-slashes-references-identifications-and)
-- [SDD: мандаты и возвраты](https://www.europeanpaymentscouncil.eu/what-we-do/sepa-direct-debit)
+- [Slash rules for references and identifiers](https://www.europeanpaymentscouncil.eu/document-library/guidance-documents/clarification-paper-use-slashes-references-identifications-and)
+- [SDD mandates and refunds](https://www.europeanpaymentscouncil.eu/what-we-do/sepa-direct-debit)
 
-EPC перенёс планировавшееся прекращение неструктурированных адресов в ноябре 2026; новый срок не объявлен. Не применять старую дату как действующее требование. Для имён в текущем ограниченном профиле установлен предел 70 символов; будущие изменения нельзя применять заранее.
+EPC postponed the planned November 2026 end of unstructured addresses without announcing a replacement date. Do not treat the previous date as a current requirement. The current restricted name profile limits names to 70 characters; future changes must not be applied early.
 
-Официальные базовые ISO XSD и SHA-256 перечислены в `src/main/resources/iso/xsd/sources.json`. `sha256` — хеш исходной загрузки; `storedSha256` — хеш копии с окончаниями строк LF. Тест `IsoSchemaIntegrityTest` сверяет сохранённые байты, нормализация не меняет содержимое XML. Источник и хеш не доказывают соответствие бизнес-правилам EPC.
+Official base ISO XSDs and SHA-256 hashes are listed in `src/main/resources/iso/xsd/sources.json`. `sha256` identifies the original download; `storedSha256` identifies the LF-normalised copy. `IsoSchemaIntegrityTest` checks stored bytes; newline normalisation does not alter XML content. Provenance and checksums do not establish EPC business-rule conformance.
 
-## Матрица проверки
+## Assessment matrix
 
-| Область | Реализация / доказательство | Статус и ограничения |
+| Area | Implementation/evidence | Status and limitations |
 |---|---|---|
-| pain.001.001.09, pain.008.001.08, pacs.008.001.08, pacs.003.001.08, pacs.002.001.10, pacs.004.001.09, camt.053.001.08 | `IsoService.validate`, официальные ISO XSD; `isoRoundtripAndInvalidInput`, `mandateAndRefund`, `IsoSchemaIntegrityTest` | Проверяется синтаксис выбранных примеров; не все ISO-сообщения и не полный EPC-профиль |
-| EUR / точность / SLEV / SEPA / контрольная сумма | Импорт одного pain.001 и экспорт внутренних переводов; негативные интеграционные тесты | Ограниченный профиль; только собственные счета, одна транзакция, текущая дата |
-| Имена и идентификаторы | `Rules.sepaName`, `Rules.sepaReference`; новые тесты границ и слешей | Частичные правила EPC; нет полной проверки допустимого набора символов всех атрибутов |
-| SCT Inst AT-T056 | `AccptncDtTm` из сохранённого `createdAt`, UTC, ровно три десятичных знака; `instantXmlRetainsAcceptanceTimestampWithMilliseconds` | Внутренняя дата приёма; нет доказательства передачи/подтверждения CSM в пределах 10 секунд |
-| Мандат SDD | Сохраняются reference, creditorIdentifier, signatureDate, sequenceType; XML использует сохранённые данные | Заявленные реквизиты; не доказанная подпись или регистрация creditor ID. Старые мандаты без данных не экспортируются |
-| Сохранность даты подписи | `directDebitXmlKeepsActualMandateMetadata`, `legacyMandatesCannotFabricateSepaMetadata`, `incompleteOrFutureDatedMandateMetadataIsRejected` | Убрана ошибочная подстановка текущей даты; неполные/будущие реквизиты отклоняются |
-| EPC TVS / межполевые правила | Нужны все соответствующие схемы и позитивные/негативные эталонные наборы | **Не подтверждено**. Загрузка официального ZIP в среду аудита вернула HTTP 403. Не заменять TVS самодельной схемой; production XML должен сохранять default ISO namespace |
-| SCT / SCT Inst / SDD R-transactions | Учебные переходы и отдельные XML | **Не реализовано полностью**: reason codes, корреляция, camt.056/029, pacs.028, расследования и разные сроки |
-| Возвраты SDD | Независимое от кредитора зачисление в пределах восьми недель; немедленное зачисление по заявлению о неавторизованном SDD до 13 календарных месяцев; отдельная дебиторская задолженность банка | **Частично реализовано**: см. [SDD-REFUNDS.md](SDD-REFUNDS.md); нет внешнего refund settlement, исключений/компенсаций и полноценной проверки доказательств |
-| Сроки SDD и мандаты | Проверка активности/срока/лимита; OOFF/FNAL защищены от повторного платежа, FRST→RCUR, проверка 36 месяцев после последнего принятия инструкции; повторная проверка перед расчётом | Предуведомление, банковский календарь/cut-off, CSM-представление, полный amendment/R-transaction lifecycle и доказательства согласия не реализованы. [Подробности](SDD-MANDATES.md) |
-| Покрытие SEPA | IBAN десяти стран, виртуальные внутренние счета, фиктивный BIC EUFIDEFFXXX | **Не подтверждено**: нет полного географического покрытия, reachability и реальных участников |
-| TIPS / RT1 / расчёт | Симуляторы TIPS_SIM / RT1_SIM | **Не подключено**: нет внешнего клиринга, окончательности расчёта, ликвидности и сверки с CSM |
-| VOP / SCA / AML | Локальное сравнение имени, роли, учебный screening | **Не соответствует полным промышленным требованиям**: нужны реальные провайдеры, dynamic linking, нормативные процессы и проверка |
+| pain.001.001.09, pain.008.001.08, pacs.008.001.08, pacs.003.001.08, pacs.002.001.10, pacs.004.001.09, camt.053.001.08 | `IsoService.validate`, official ISO XSDs; `isoRoundtripAndInvalidInput`, `mandateAndRefund`, `IsoSchemaIntegrityTest` | Syntax checked for selected examples, not all ISO messages or the full EPC profile |
+| EUR/precision/SLEV/SEPA/control sum | Single pain.001 import and internal transfer exports; negative integration tests | Internal accounts, one transaction and current date only |
+| Names and identifiers | `Rules.sepaName`, `Rules.sepaReference`; boundary/slash tests | Partial EPC rules; no complete permitted character-set validation for every attribute |
+| SCT Inst AT-T056 | Saved `createdAt` supplies UTC `AccptncDtTm` with exactly three fractional digits; timestamp regression test | Internal acceptance time only; no evidence of CSM exchange/confirmation within ten seconds |
+| SDD mandate | Stored reference, creditorIdentifier, signatureDate and sequenceType used by XML | Declared metadata, not verified signatures or registered creditor IDs. Legacy metadata-free mandates cannot be exported |
+| Signature date preservation | `directDebitXmlKeepsActualMandateMetadata`, `legacyMandatesCannotFabricateSepaMetadata`, `incompleteOrFutureDatedMandateMetadataIsRejected` | Current-date substitution removed; incomplete/future metadata rejected |
+| EPC TVS/cross-field rules | Requires applicable schemas and positive/negative reference datasets | **Not confirmed**. Official ZIP download returned HTTP 403 in the assessment environment. Do not substitute homemade TVS; production XML must retain the default ISO namespace |
+| SCT/SCT Inst/SDD R-transactions | Lab transitions and individual XML messages | **Incomplete**: reason codes, correlation, camt.056/029, pacs.028, investigations and scheme-specific deadlines |
+| SDD refunds | Creditor-independent eight-week credit; immediate credit for unauthorised claims within 13 calendar months; separate bank receivable | **Partial**: [SDD-REFUNDS.md](SDD-REFUNDS.md); no external settlement, complete exceptions/compensation or evidence validation |
+| SDD timing and mandates | Activity/expiry/limit checks; OOFF/FNAL reuse prevention, FRST to RCUR, 36-month inactivity from latest API acceptance, checks before settlement | No pre-notification, calendar/cut-off, CSM presentation, complete amendment/R-transaction lifecycle or consent evidence; [details](SDD-MANDATES.md) |
+| SEPA coverage | IBAN validation for ten countries, virtual internal accounts and synthetic BIC EUFIDEFFXXX | **Not confirmed**: incomplete geography/reachability and no real participants |
+| TIPS/RT1/settlement | TIPS_SIM/RT1_SIM simulators | **Not connected**: no external clearing, settlement finality, liquidity or CSM reconciliation |
+| VOP/SCA/AML | Internal name comparison, roles and simulated screening | **Does not meet complete production requirements**: real providers, dynamic linking, regulatory procedures and validation required |
 
-Имена pacs002/pacs004 означают базовый ISO XML. Для новых локальных возвратов SDD выводятся MD06/MD01; в остальных лабораторных возвратах остаётся `LAB_RETURN`. Полный EPC-профиль сообщений не подтверждён. Выписка camt.053 — учебная полная история, не сертифицированная банковская периодная выписка. `FRST/RCUR/OOFF/FNAL` теперь исполняются в ограниченном локальном жизненном цикле: тип коллекции и дата сохраняются в платеже. Повторное представление после Return и полный EPC lifecycle не реализованы.
+pacs002/pacs004 exports provide basic ISO XML. New local SDD refunds use MD06/MD01; other lab returns retain `LAB_RETURN`. The full EPC message profile is unconfirmed. camt.053 is a learning full-history statement, not a certified periodic bank statement. FRST/RCUR/OOFF/FNAL have a restricted local lifecycle with saved collection type/date. Return re-presentation and full EPC lifecycle remain incomplete.
 
-## Новые реквизиты мандата
+## Mandate metadata
 
-`POST /api/v1/mandates` принимает дополнительные поля. Пример с вымышленным creditor ID; он не предназначен для реальной отправки:
+`POST /api/v1/mandates` accepts additional fields. This example uses a fictional creditor ID and is not for real submission:
 
 ```json
 {
-  "debtorId": "<id счёта плательщика>",
-  "creditorId": "<id счёта получателя>",
+  "debtorId": "<payer-account-id>",
+  "creditorId": "<creditor-account-id>",
   "validUntil": "2027-01-01",
   "maxAmount": 20.00,
   "mandateReference": "MANDATE-2026-001",
@@ -54,20 +54,20 @@ EPC перенёс планировавшееся прекращение нес�
 }
 ```
 
-Все четыре дополнительных поля передаются вместе. Без них сохраняется совместимость старого учебного API, но pain.008/pacs.003 вернут `SEPA_MANDATE_METADATA_REQUIRED`. Создание мандатов пока доступно через API; формы создания в кабинете ещё нет. Проверка формата creditor ID не проверяет его выдачу и национальные контрольные правила.
+Supply all four metadata fields together. Omitting them preserves legacy lab API compatibility, but pain.008/pacs.003 export returns `SEPA_MANDATE_METADATA_REQUIRED`. Creation is API-only; there is no portal mandate creation form yet. Creditor ID syntax validation does not verify issuance or national checksum rules.
 
-## Что необходимо до подтверждения полного соответствия
+## Requirements before confirming full conformance
 
-1. Зафиксировать роль проекта (C2PSP шлюз, PSP или банковский core), схемы, направления сообщений и договорного PSP/CSM. Получить его версии интерфейсов и тестовую среду.
-2. Добавить полный EPC-профиль, контрольные наборы TVS и semantic rules, календарь, R-transactions, мандатный процесс и безусловные/неавторизованные возвраты. Базовые возвраты и дела теперь реализованы локально, но внешний settlement и нормативные исключения открыты. Для каждого требования — трассировка на реализацию и позитивный/негативный тест.
-3. Реализовать аутентичный внешний транспорт, корреляцию и recovery после неопределённого результата, ликвидность и сверку; пройти interoperability/acceptance tests выбранного PSP/CSM.
-4. Провести отдельные security/compliance assessments (PSD2/IPR/DORA/GDPR/AML) с ответственными лицами и операционными процессами. CodeQL требует включения соответствующей возможности GitHub и переменной CODEQL_ENABLED=true. Пока он явно пропускается; Semgrep с шестью локальными правилами даёт ограниченную проверку исходного кода, не эквивалентную CodeQL.
-5. Только после получения воспроизводимых результатов, согласований и приёмки изменять общий статус. Нельзя выдать сертификат или отметить проект полностью соответствующим по результатам локального XSD-теста.
+1. Fix the project's role (C2PSP gateway, PSP or bank core), schemes, message directions and contractual PSP/CSM. Obtain its interface versions and sandbox.
+2. Implement the complete EPC profile, TVS/reference datasets, semantic rules, calendars, R-transactions and mandate/refund procedures. Basic refunds/cases exist locally; external settlement and statutory exceptions remain open. Trace each requirement to implementation and positive/negative tests.
+3. Add authentic external transport, correlation, unknown-outcome recovery, liquidity and reconciliation; pass the selected PSP/CSM interoperability and acceptance tests.
+4. Complete separate security/compliance assessments for PSD2/IPR/DORA/GDPR/AML with accountable people and operational procedures. CodeQL runs automatically for public repositories; private repositories require supported Code Security and `CODEQL_ENABLED=true`. The six-rule Semgrep baseline is not equivalent to CodeQL.
+5. Change overall status only after reproducible evidence, approvals and acceptance. A local XSD test cannot issue certification or establish complete conformance.
 
-## Повторная проверка
+## Reverification and evidence
 
-На JDK 21: `./mvnw -Pcontainers verify`; браузер: `bash e2e/run-local.sh`. Результаты конкретного коммита доступны в GitHub Actions. Наличие теста в этой таблице само по себе не означает его прохождение: окончательные результаты записываются после завершения CI.
+Use JDK 21 with `./mvnw -Pcontainers verify`; browser: `bash e2e/run-local.sh`. GitHub Actions reports results for a specific commit. A test listed in this matrix is not itself proof of success; record evidence after CI completes.
 
-Последний успешный функциональный прогон: [Actions 38048465852](https://github.com/straigenlu-netizen/eu_fin/actions/runs/38048465852), код `ddbe24ae0fa2a2b104eca6d77826b6692b683d10`: 81 тест выполнен, 1 условный Kafka пропущен, 0 failures/errors; 24 браузерные проверки и Trivy прошли. CodeQL не подтверждён. [Машиночитаемый отчёт](sepa-iso-assessment.json). SDD load regression: 120 запросов / 8 работников; p95 40 ms, p99 51 ms, H2. Это не промышленный SLA.
+Historical refund run: [Actions 38048465852](https://github.com/straigenlu-netizen/eu_fin/actions/runs/38048465852), commit `ddbe24ae0fa2a2b104eca6d77826b6692b683d10`: 81 executed tests, one conditional Kafka skip, zero failures/errors; 24 browser checks and Trivy passed. CodeQL was not confirmed. SDD load: 120 requests, 8 workers, p95 40 ms/p99 51 ms on H2, not a production SLA.
 
-Последняя проверка после изменений мандатов: [Actions 38051899042](https://github.com/straigenlu-netizen/eu_fin/actions/runs/38051899042), код `c35a91e08c9ebb4388937ada1971a5c9bff18761`: workflow SUCCESS, 88 тестов выполнено, 1 условный пропущен, 24 браузерные проверки, Semgrep и Trivy прошли. CodeQL явно пропущен. Подробности: [CI-RESULTS.md](CI-RESULTS.md).
+Latest tested mandate implementation: [Actions 38051899042](https://github.com/straigenlu-netizen/eu_fin/actions/runs/38051899042), commit `c35a91e08c9ebb4388937ada1971a5c9bff18761`: workflow SUCCESS, 88 executed tests, one conditional skip, 24 browser checks, Semgrep and Trivy passed; CodeQL explicitly skipped. [CI report](CI-RESULTS.md) and [machine-readable assessment](sepa-iso-assessment.json).

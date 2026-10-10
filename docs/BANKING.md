@@ -1,45 +1,45 @@
-# Банковский домен: что означает каждое понятие
+# Banking domain concepts
 
-## Перевод, клиринг и расчёт
+## Initiation, clearing and settlement
 
-Initiation — создание поручения. Validation — проверка формата, клиента, счёта, суммы, доступности и схемы. Screening — проверка ограничений и риска. Routing выбирает канал. Clearing согласовывает обязательства участников. Settlement исполняет расчёт. Reconciliation сопоставляет записи и ищет расхождения.
+Initiation creates an instruction. Validation checks format, customer, account, amount, availability and scheme. Screening checks restrictions and risk. Routing selects a channel. Clearing establishes participants' obligations. Settlement executes the transfer of funds. Reconciliation compares records and identifies discrepancies.
 
-Внутри проекта все стороны имеют счета в одном ledger. Названия маршрутов `TIPS_SIM`, `RT1_SIM`, `SEPA_CLEARING` обозначают учебный выбор, а не реальное участие банка в этих системах. Настоящий межбанковский расчёт требует settlement accounts, ликвидности, сертификатов, подключения и правил участника.
+All parties in this project have accounts in one ledger. Routes `TIPS_SIM`, `RT1_SIM` and `SEPA_CLEARING` are learning choices, not participation in those systems. Real interbank settlement requires settlement accounts, liquidity, certificates, connectivity and participant rules.
 
-| Схема | Реализация лаборатории | Ограничение |
+| Scheme | Lab implementation | Limitations |
 |---|---|---|
-| SCT | EUR перевод, валидация, резерв, проводки, возврат | Нет банковского календаря, cut-off и обмена с внешним участником |
-| SCT Inst | Deadline 10 секунд, timeout, освобождение резерва, выбор учебного маршрута | Нет гарантии реального межбанковского SLA или промышленного VOP |
-| SDD Core | Мандат, коллекция, отзыв; независимый возврат в пределах восьми недель; немедленное зачисление по заявлению до 13 календарных месяцев; отдельное взыскание | Нет полного календаря pre-notification, внешнего refund settlement, нормативных исключений и полноценного хранения доказательств |
-| Open Banking | Согласие на чтение конкретного счёта, срок, отзыв, привязка TPP | Не сертифицированный PSD2 API; нет настоящей SCA и регистрации TPP |
+| SCT | EUR transfer, validation, reservation, postings and return | No banking calendar, cut-off or external participant exchange |
+| SCT Inst | Ten-second deadline, timeout, reservation release and simulated routing | No real interbank SLA guarantee or production VOP |
+| SDD Core | Mandate, collection, revocation; independent eight-week refund; immediate credit on an unauthorised claim within 13 calendar months; separate recovery | No complete pre-notification calendar, external refund settlement, statutory exceptions or complete evidence storage |
+| Open Banking | Account-specific read consent, expiry, revocation and TPP binding | Not a certified PSD2 API; no real SCA or TPP registration |
 
-Мандат SDD — разрешение должника кредитору инициировать списание. Он не равен произвольному праву агента банка забрать деньги. Согласие Open Banking выдаёт доступ к данным; оно не даёт автоматически право инициировать перевод.
+An SDD mandate authorises the creditor to initiate a debit. It does not grant arbitrary withdrawal rights to bank staff. Open Banking consent grants data access; it does not automatically authorise payment initiation.
 
-Возврат, расследование и задолженность банка подробно разобраны в [SDD-REFUNDS.md](SDD-REFUNDS.md), включая API, UI, проводки, даты и тесты.
+Refunds, investigation and bank receivables: [SDD-REFUNDS.md](SDD-REFUNDS.md), including APIs, UI, postings, dates and tests. Mandate lifecycle: [SDD-MANDATES.md](SDD-MANDATES.md).
 
 ## ISO 20022
 
-| Семейство | Кто кому сообщает | В проекте |
+| Message | Direction or purpose | Project support |
 |---|---|---|
-| pain.001.001.09 | Клиент → банк: поручение credit transfer | Ограниченный импорт и экспорт |
-| pain.008.001.08 | Клиент → банк: direct debit | Экспорт |
-| pacs.008.001.08 | Банк → банк: credit transfer | Экспорт |
-| pacs.003.001.08 | Банк → банк: direct debit | Экспорт |
-| pacs.002.001.10 | Статус обработки платежа | Экспорт |
-| pacs.004.001.09 | Возврат платежа | Экспорт |
-| camt.053.001.08 | Выписка и движения по счёту | Экспорт |
+| pain.001.001.09 | Customer to bank: credit transfer instruction | Restricted import and export |
+| pain.008.001.08 | Customer to bank: direct debit | Export |
+| pacs.008.001.08 | Bank to bank: credit transfer | Export |
+| pacs.003.001.08 | Bank to bank: direct debit | Export |
+| pacs.002.001.10 | Payment processing status | Export |
+| pacs.004.001.09 | Payment return | Export |
+| camt.053.001.08 | Account statement and movements | Export |
 
-XSD проверяет структуру и типы. Бизнес-правила схемы SEPA, usage guidelines, ISO версии и требования конкретного канала — отдельные уровни. Наличие валидного XML не доказывает возможность отправить его в сеть. Здесь выбран ограниченный профиль: один платёж, EUR, известные внутренние счета, допустимые поля и текущая дата исполнения; неподдерживаемые данные отвергаются, а не молча теряются.
+XSD validates structure and types. SEPA business rules, usage guidelines, ISO versions and channel requirements are separate layers. Valid XML alone does not prove it can be sent to a network. The restricted profile supports one payment, EUR, known internal accounts, supported fields and the current execution date. Unsupported input is rejected instead of silently discarded.
 
-В XML используется синтетический BIC `EUFIDEFFXXX`. MT103 preview разбирает ограниченный body и отказывается от неизвестных полей. Это не полная миграция SWIFT MT → MX, не FIN-сообщение и не поддержка CBPR+.
+XML uses the synthetic BIC `EUFIDEFFXXX`. MT103 preview parses a restricted body and rejects unknown fields. It is not full SWIFT MT-to-MX migration, a FIN message or CBPR+ support.
 
-## Регулирование
+## Regulation
 
-PSD2/Open Banking влияет на согласия, аутентификацию и доступ TPP. Instant Payments Regulation влияет на сроки, доступность и проверку получателя. DORA относится к операционной устойчивости, риску ICT, инцидентам и сторонним поставщикам. GDPR требует основания обработки, минимизации, сроков хранения, прав субъектов и защиты. AML/санкции требуют реальных источников данных, мониторинга, расследования и отчётности.
+PSD2/Open Banking affects consent, authentication and TPP access. The Instant Payments Regulation affects timing, availability and payee verification. DORA covers operational resilience, ICT risk, incidents and third-party suppliers. GDPR requires a processing basis, minimisation, retention, data subject rights and protection. AML/sanctions require real data sources, monitoring, investigation and reporting.
 
-Проект демонстрирует часть инженерных механизмов, но не заявляет юридического соответствия. KYC-решение агента и screening в коде — симуляции. Проверка имени получателя — точное локальное сравнение с владельцем счёта, а не EPC VOP scheme.
+This project demonstrates selected engineering mechanisms, not legal compliance. Staff KYC decisions and screening are simulations. Payee verification compares the submitted name to the internal account owner; it is not the EPC VOP scheme.
 
-## Первичные источники
+## Primary sources
 
 - [EPC SCT](https://www.europeanpaymentscouncil.eu/what-we-do/epc-payment-schemes/sepa-credit-transfer-sct)
 - [EPC SCT Inst](https://www.europeanpaymentscouncil.eu/what-we-do/epc-payment-schemes/sepa-instant-credit-transfer-sct-inst)
@@ -50,4 +50,4 @@ PSD2/Open Banking влияет на согласия, аутентификаци
 - [ISO 20022 definitions](https://www.iso20022.org/iso-20022-message-definitions)
 - [EBA DORA](https://www.eba.europa.eu/activities/direct-supervision-and-oversight/digital-operational-resilience-act)
 
-Версии rulebook и сроки действия необходимо проверять перед реальной интеграцией. Официальные URLs и SHA-256 использованных XSD сохранены рядом со схемами.
+Check rulebook versions and effective dates before real integration. Official URLs and SHA-256 hashes for the XSDs are stored alongside the schemas.

@@ -1,89 +1,82 @@
-# Java 21 — исправления CI и жизненный цикл мандатов
+# Java 21 - CI fixes and mandate lifecycle
 
-Код: `c35a91e08c9ebb4388937ada1971a5c9bff18761`. [GitHub Actions](https://github.com/straigenlu-netizen/eu_fin/actions/runs/38051899042), 10 октября 2026: **SUCCESS**.
+Commit: `c35a91e08c9ebb4388937ada1971a5c9bff18761`. [GitHub Actions](https://github.com/straigenlu-netizen/eu_fin/actions/runs/38051899042), 10 October 2026: **SUCCESS**.
 
-| Проверка | Результат |
+| Check | Result |
 |---|---|
-| Maven / Java 21 | 89 тестов обнаружено, 88 выполнено, 1 условный ExternalKafkaTest пропущен; 0 failures/errors |
-| PostgreSQL / Kafka | Успешно, включая блокировку повторного OOFF, отзыв после CLEAR, отсутствие списания и проекцию REJECTED через outbox/Kafka |
-| Миграции | V3 ledger и V4→V5 с существующими платежами; даты/тип коллекции, последняя активность, неиспользованный мандат без выдуманной активности |
-| Playwright | 24 проверки прошли |
-| Нагрузочные тесты / mTLS / security HTTP e2e | Прошли; SDD: 120 запросов, 8 работников, p95 46 ms, p99 59 ms на H2 |
-| Semgrep Community | 6 правил, 6 групп тестовых примеров прошли; 28 файлов приложения, 0 находок, SARIF сохранён |
-| Trivy HIGH/CRITICAL | Прошёл |
-| CodeQL | Явно пропущен: нужна доступная и включённая возможность Code Scanning и CODEQL_ENABLED=true. Не считается успешной проверкой |
+| Maven/Java 21 | 89 discovered, 88 executed, one conditional ExternalKafkaTest skipped; zero failures/errors |
+| PostgreSQL/Kafka | Passed, including duplicate OOFF rejection, revocation after CLEAR, no debit and REJECTED projection through outbox/Kafka |
+| Migrations | V3 ledger and V4-to-V5 existing payments; collection dates/types, last activity, no fabricated activity for unused mandates |
+| Playwright | 24 checks passed |
+| Load/mTLS/security HTTP e2e | Passed; SDD: 120 requests, 8 workers, p95 46 ms/p99 59 ms on H2 |
+| Semgrep Community | Six rules and six fixture groups passed; 28 source files, zero findings, SARIF saved |
+| Trivy HIGH/CRITICAL | Passed |
+| CodeQL | Explicitly skipped in this run because private repository Code Scanning was unavailable; not successful CodeQL evidence |
 
-Предыдущий сбой Actions был ошибкой конфигурации CodeQL при загрузке SARIF в приватный репозиторий. Semgrep добавлен как ограниченная блокирующая проверка исходного кода, не эквивалент CodeQL. Ошибки тестов и сканеров не скрываются через continue-on-error.
+The previous Actions failure was CodeQL's SARIF upload configuration error in the private repository. Semgrep provides focused blocking source checks, not equivalent CodeQL coverage. Test/scanner errors are not hidden with continue-on-error. The current workflow automatically enables CodeQL for public repositories; private repositories need supported Code Security and `CODEQL_ENABLED=true`.
 
-Новые проверки: гонка двух OOFF, идемпотентный повтор, исправление после Reject, запрет повторного использования после расчёта/refund, права владельца мандата, отзыв до SETTLE, снимки FRST/RCUR и даты XML, 36 календарных месяцев после последнего принятия инструкции. Описание и ограничения: [SDD-MANDATES.md](SDD-MANDATES.md).
+New tests cover concurrent OOFF instructions, idempotent retry, correction after Reject, reuse prevention after settlement/refund, mandate ownership, revocation before SETTLE, saved FRST/RCUR and XML dates, and 36 calendar months after latest instruction acceptance. Details: [SDD-MANDATES.md](SDD-MANDATES.md).
 
-**Полное соответствие SEPA/ISO и промышленная готовность не подтверждены.** Метрики — короткая регрессия целостности/времени ответа, не банковский SLA или промышленная ёмкость. [Отчёт](SEPA-ISO-CONFORMANCE.md).
+**Full SEPA/ISO conformance and production readiness remain unconfirmed.** Metrics are short integrity/latency regressions, not bank SLAs or production capacity. [Assessment](SEPA-ISO-CONFORMANCE.md).
 
-## Предыдущие проверки
+## Previous run: SDD refunds, disputes and recovery
 
-# Java 21 — SDD refunds, disputes and recovery
+Commit: `ddbe24ae0fa2a2b104eca6d77826b6692b683d10`. [Actions 38048465852](https://github.com/straigenlu-netizen/eu_fin/actions/runs/38048465852), 10 October 2026.
 
-Код: `ddbe24ae0fa2a2b104eca6d77826b6692b683d10`.
-[GitHub Actions](https://github.com/straigenlu-netizen/eu_fin/actions/runs/38048465852), 10 октября 2026.
-
-| Проверка | Результат |
+| Check | Result |
 |---|---|
-| Maven / JDK 21 / compiler release 21 | Успешно: 82 теста обнаружено, 81 выполнено, 1 условный ExternalKafkaTest пропущен; 0 failures/errors |
-| PostgreSQL / Kafka Testcontainers | Успешно: возврат, частичное взыскание, миграции, outbox/consumer; отдельный реальный контейнерный тест |
-| Playwright / HTTP demo smoke | Успешно: 24 браузерные проверки; возврат клиента, неавторизованный SDD, независимое расследование, взыскание |
-| SDD load regression | 120 запросов / 8 работников / 12 списаний / 10 попыток на платёж; p95 40 ms, p99 51 ms; H2, короткий тест |
-| Существующая HTTP load regression / mTLS / security e2e | Успешно |
-| Trivy HIGH/CRITICAL vuln/secret/misconfig | Успешно |
-| CodeQL | Завершился configuration failure: Code scanning is not enabled for this repository. Не засчитывается как успешная проверка |
+| Maven/JDK 21/compiler release 21 | 82 discovered, 81 executed, one conditional ExternalKafkaTest skipped; zero failures/errors |
+| PostgreSQL/Kafka Testcontainers | Passed: refund, partial recovery, migrations and outbox/consumer in real containers |
+| Playwright/HTTP demo smoke | 24 browser checks passed: payer refund, unauthorised SDD, independent investigation and recovery |
+| SDD load regression | 120 requests, 8 workers, 12 collections, 10 attempts per payment; p95 40 ms/p99 51 ms on H2 |
+| Existing HTTP load/mTLS/security e2e | Passed |
+| Trivy HIGH/CRITICAL vuln/secret/misconfig | Passed |
+| CodeQL | Configuration failure: Code scanning is not enabled for this repository; not successful evidence |
 
-Отдельно проверены: пустой или зарезервированный счёт кредитора; календарные границы 8 недель/13 месяцев; високосный февраль; дата валютирования; однократное зачисление при параллельных повторах; отдельное частичное взыскание; self-review и MFA; полное rollback при ошибке аудита; обновление существующего ledger с V3 на V4.
+Checks included empty/reserved creditor funds, eight-week/13-month calendar boundaries, leap-year February, value dates, one credit under concurrent retries, separate partial recovery, self-review/MFA, full rollback on audit failure and existing V3 ledger migration to V4.
 
-Метрики [sdd-performance-results.json](sdd-performance-results.json) — регрессия финансовой целостности и времени ответа, не промышленная ёмкость/SLA. CI upload сохраняет результаты обоих нагрузочных тестов, JUnit/JaCoCo и браузерные скриншоты, включая кабинет оператора.
+[sdd-performance-results.json](sdd-performance-results.json) records financial integrity/latency regression, not production capacity/SLA. CI artifacts contain both load reports, JUnit/JaCoCo and browser screenshots including payment operations.
 
-**Полное соответствие SEPA и промышленная готовность не подтверждены.** Реализация: [SDD-REFUNDS.md](SDD-REFUNDS.md); ограничения: [SEPA-ISO-CONFORMANCE.md](SEPA-ISO-CONFORMANCE.md).
+**Full SEPA conformance and production readiness are not confirmed.** [Refund implementation](SDD-REFUNDS.md); [limitations](SEPA-ISO-CONFORMANCE.md).
 
-## Предыдущие проверки
+## Previous run: SEPA/ISO assessment fixes
 
-# Java 21 — проверки после аудита SEPA/ISO
+Commit: `6f8bc26900769cdedec3f2333a9a4a0d953eabbd`. [Actions 38046761126](https://github.com/straigenlu-netizen/eu_fin/actions/runs/38046761126), 10 October 2026.
 
-Код: `6f8bc26900769cdedec3f2333a9a4a0d953eabbd`.
-[GitHub Actions](https://github.com/straigenlu-netizen/eu_fin/actions/runs/38046761126), 10 октября 2026.
-
-| Проверка | Результат |
+| Check | Result |
 |---|---|
-| Maven / JDK 21 / compiler release 21 | Успешно: 64 теста обнаружено, 63 выполнено, 1 условный ExternalKafkaTest пропущен; 0 failures/errors |
-| PostgreSQL / Kafka Testcontainers | Успешно; отдельный реальный контейнерный тест, несмотря на пропуск условного внешнего Kafka |
-| Playwright / HTTP demo smoke | Успешно: 16 браузерных проверок и пять демо-клиентов |
-| Нагрузочная регрессия / mTLS / security e2e | Успешно; это не промышленная оценка ёмкости или независимый pentest |
-| Trivy HIGH/CRITICAL vuln/secret/misconfig | Успешно |
-| CodeQL | Завершился ошибкой конфигурации: Code scanning is not enabled for this repository. Code scanning для приватного репозитория отключён; проверка не засчитывается |
+| Maven/JDK 21/compiler release 21 | 64 discovered, 63 executed, one conditional ExternalKafkaTest skipped; zero failures/errors |
+| PostgreSQL/Kafka Testcontainers | Passed in real containers despite the conditional external Kafka skip |
+| Playwright/HTTP demo smoke | 16 checks passed, including five demo customers |
+| Load/mTLS/security e2e | Passed; not production capacity assessment or independent pentest |
+| Trivy HIGH/CRITICAL vuln/secret/misconfig | Passed |
+| CodeQL | Configuration failure: Code scanning is not enabled for this repository; not successful evidence |
 
-Новые проверки: настоящие сохранённые реквизиты мандата, отказ экспорта без них, отказ неполных/будущих реквизитов, неизменная millisecond acceptance timestamp SCT Inst, идентификаторы со слешами, граница имени 70 символов, контрольные суммы семи ISO XSD.
+New checks covered saved mandate metadata, refusal to export missing metadata, incomplete/future metadata rejection, immutable millisecond SCT Inst acceptance timestamps, slash rules, the 70-character name limit and seven ISO XSD checksums.
 
-Первый прогон аудита выявил несовпадение хешей из-за CRLF/LF при публикации. Исправлено: оригинальный `sha256` и `storedSha256` различаются явно, сохранённые XSD имеют LF. Повторный тест целостности прошёл.
+The first assessment run found CRLF/LF checksum differences introduced during publication. Original `sha256` and `storedSha256` are now distinct and stored XSDs use LF. The integrity rerun passed.
 
-**Полное соответствие SEPA не подтверждено.** Требования, доказательства и пробелы: [SEPA-ISO-CONFORMANCE.md](SEPA-ISO-CONFORMANCE.md); машиночитаемый статус: [sepa-iso-assessment.json](sepa-iso-assessment.json).
+**Full SEPA conformance is unconfirmed.** [Requirements/evidence/gaps](SEPA-ISO-CONFORMANCE.md); [machine-readable status](sepa-iso-assessment.json).
 
-## Предыдущая проверка Java 21
+## Earlier Java 21 verification
 
-Код: `0102a73a6ee6d5b91227df846e19d3278c3cb033`.
-[GitHub Actions](https://github.com/straigenlu-netizen/eu_fin/actions/runs/38043507242), 10 октября 2026.
+Commit: `0102a73a6ee6d5b91227df846e19d3278c3cb033`. [Actions 38043507242](https://github.com/straigenlu-netizen/eu_fin/actions/runs/38043507242), 10 October 2026.
 
-| Проверка | Результат |
+| Check | Result |
 |---|---|
-| Maven, compiler release 21, JDK 21 | Успешно: 53 теста обнаружено, 52 выполнено, 1 условный ExternalKafkaTest пропущен; 0 failures/errors |
-| PostgreSQL 16.6 + Kafka 3.9, Testcontainers | Успешно: миграции, ledger, outbox, broker, consumer, JPA projection |
-| Playwright | Успешно: 16 проверок, настоящий UI/backend, IdP endpoints mocked |
-| Demo HTTP smoke | Успешно: 5 VERIFIED клиентов, по одному счёту с 1000 EUR |
-| Trivy vuln/secret/misconfig HIGH/CRITICAL | Успешно |
-| CodeQL | Прогон блокирован: GitHub сообщает «Code scanning is not enabled for this repository». Успех CodeQL не заявляется; требуется настройка этой функции в GitHub |
+| Maven/compiler release 21/JDK 21 | 53 discovered, 52 executed, one conditional ExternalKafkaTest skipped; zero failures/errors |
+| PostgreSQL 16.6/Kafka 3.9 Testcontainers | Passed: migrations, ledger, outbox, broker, consumer and JPA projection |
+| Playwright | 16 checks passed against real UI/backend with mocked IdP endpoints |
+| Demo HTTP smoke | Five VERIFIED customers, one 1000 EUR account each |
+| Trivy HIGH/CRITICAL vuln/secret/misconfig | Passed |
+| CodeQL | Blocked: Code scanning is not enabled for this repository; no successful CodeQL claim |
 
-Проект использует только Java 21: compiler release 21, CI JDK 21, Docker build/runtime 21. Старые Java 17 отчёты относятся к предыдущим ревизиям.
+Java 21 is the only supported version: compiler, CI and Docker build/runtime. Historical Java 17 reports concern earlier revisions.
 
-Исправлены причины первых неуспешных прогонов: Trivy action tag; Kafka 3.9 effective controller listener; Instant параметры PostgreSQL JDBC; уязвимые зависимости; pod security context и writable root filesystem.
+Initial failures were fixed: Trivy action tag, Kafka 3.9 effective controller listener, PostgreSQL JDBC Instant parameters, vulnerable dependencies, pod security context and writable root filesystem.
 
-Используются Spring Boot 3.5.16, PostgreSQL JDBC 42.7.14, Spring Kafka 3.3.16 и Trivy action v0.36.0. Версии проверены по первичным repository refs/releases. HIGH/CRITICAL gate сохранён; замечания не скрывались allowlist или отключением сканера.
+Versions: Spring Boot 3.5.16, PostgreSQL JDBC 42.7.14, Spring Kafka 3.3.16 and Trivy action v0.36.0, checked against primary repository refs/releases. The HIGH/CRITICAL gate remained enabled without hiding findings through allowlists or disabling scanners.
 
-Полный Compose с живым Keycloak, Schema Registry и Kafka Streams, deployment и реальная платёжная сеть всё ещё не проверены. Browser IdP mock не подтверждает настоящее SCA/MFA. Независимый pentest и подтверждение всех применимых SEPA/ISO scheme rules отсутствуют: обязательные критерии промышленной приёмки в [PRODUCTION-READINESS.md](PRODUCTION-READINESS.md) остаются открытыми.
+Full Compose with live Keycloak, Schema Registry and Kafka Streams, deployment and real payment networks remain unverified. A mocked browser IdP does not establish real SCA/MFA. No independent pentest or complete applicable SEPA/ISO rule acceptance exists; [PRODUCTION-READINESS.md](PRODUCTION-READINESS.md) criteria remain open.
 
-Первичный локальный отчёт и нагрузочные метрики сохранены отдельно; они не доказывают промышленную ёмкость.
+Initial local reports and load metrics are preserved separately; they do not prove production capacity.

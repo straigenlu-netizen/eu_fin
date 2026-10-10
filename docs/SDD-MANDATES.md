@@ -1,19 +1,19 @@
-# Жизненный цикл мандатов SDD в лаборатории
+# SDD mandate lifecycle in the lab
 
-Мандат создаёт и отзывает владелец счёта плательщика. Роль оператора сама по себе не даёт права выдавать согласие от имени клиента.
+The payer account owner creates and revokes a mandate. Operator status alone does not permit granting consent on a customer's behalf.
 
-Для `OOFF` и `FNAL` одновременно допустима одна коллекция. Повтор с исходным ключом идемпотентности возвращает исходный платёж; новый ключ не создаёт второе списание. После отказа до расчёта (`REJECTED`) можно исправить инструкцию и повторить её. После расчёта, возврата или refund повторное использование блокируется. Это консервативный локальный вариант: отдельная процедура повторного представления после Return, где она допускается EPC, ещё не реализована.
+For `OOFF` and `FNAL`, only one collection may be active at a time. A retry with the original idempotency key returns the original payment; a new key cannot create a second debit. After a pre-settlement rejection (`REJECTED`), a corrected instruction may be submitted. Reuse is blocked after settlement, Return or Refund. This is a conservative local model: separate re-presentation after Return, where EPC permits it, is not implemented.
 
-`FRST` сохраняется в первом платеже; следующие инструкции используют `RCUR`. Можно сразу создать recurrent мандат с `RCUR`: обязательное использование FRST не требуется. Тип и дата коллекции сохраняются в платеже, поэтому экспорт старого pain.008/pacs.003 не меняется после нового списания или смены даты сервера.
+The first payment retains `FRST`; subsequent instructions use `RCUR`. A recurrent mandate may start with `RCUR`: FRST is not mandatory. Collection type and date are saved in the payment, so exporting an old pain.008/pacs.003 does not change after another collection or server date change.
 
-После 36 календарных месяцев от последнего представления новая коллекция отклоняется. Отказ, Return и Refund не стирают факт представления. Здесь представлением считается принятие API-инструкции: реальное представление в CSM пока отсутствует. Для никогда не использованного мандата дата подписи не подменяет дату последней коллекции. Миграция восстанавливает последнюю дату из сохранённых платежей; отдельный исторический импорт CSM необходим для промышленного перехода. Неактивность сейчас блокирует операцию; фоновая юридическая отмена и уведомление кредитора ещё не реализованы.
+A new collection is rejected after 36 calendar months since the latest presentation. Reject, Return and Refund do not erase presentation activity. Here presentation means acceptance of an API instruction; real CSM presentation is absent. For an unused mandate, the signature date is not substituted for the last collection date. Migration restores the last date from saved payments; production migration requires a separate CSM history import. Inactivity blocks operations, but background legal cancellation and creditor notification are not implemented.
 
-На SCREEN, CLEAR и SETTLE мандат проверяется повторно. Если он отозван или срок истёк, платёж отклоняется с MD01, резерв снимается, деньги не списываются. Отзыв уже рассчитанного платежа не отменяет проводки: нужны Refund/Return/claim.
+SCREEN, CLEAR and SETTLE recheck the mandate. Revocation or expiry rejects the payment with MD01, releases the hold and prevents a debit. Revoking an already settled mandate does not reverse postings: Refund/Return/claim procedures are needed.
 
-Все проверки и запись выполняются в транзакции с блокировками счетов и мандата; тест гонки проверяет два разных ключа для OOFF.
+Checks and writes execute in a transaction with account and mandate locks. The concurrency test submits two different OOFF idempotency keys.
 
-## Ограничения
+## Limitations
 
-Дата коллекции пока совпадает с датой создания лабораторного платежа. Предуведомление за 14 календарных дней (либо согласованный иной срок), планирование будущих платежей, D-1, банковские календари, подпись/e-Mandate, amendment и полный набор R-transactions остаются следующими этапами. Сохранение даты устраняет изменение XML, но не подтверждает соблюдение сроков SEPA. Старые мандаты без метаданных остаются лабораторными; ISO-экспорт для них запрещён.
+The collection date currently equals the lab payment creation date. Fourteen-calendar-day pre-notification (or another agreed period), future scheduling, D-1, banking calendars, signatures/e-Mandates, amendments and complete R-transactions remain future work. Saving the date prevents XML drift; it does not prove SEPA timing compliance. Legacy mandates without metadata remain lab-only and cannot be exported to ISO.
 
-Источник: [EPC016-06, SDD Core Rulebook 2025 v1.2](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC016-06%202025%20SDD%20Core%20Rulebook%20version%201.2.pdf), разделы 4.2, 4.3.4 и 4.5.4. Текущий статус проекта: **NOT_CONFIRMED**, не промышленная сертификация.
+Source: [EPC016-06, SDD Core Rulebook 2025 v1.2](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC016-06%202025%20SDD%20Core%20Rulebook%20version%201.2.pdf), sections 4.2, 4.3.4 and 4.5.4. Overall status: **NOT_CONFIRMED**, not production certification.

@@ -1,61 +1,61 @@
-# Возвраты SDD Core: зачисление, расследование, взыскание
+# SDD Core refunds: credit, investigation and recovery
 
-В этой реализации это три независимых процесса. Возврат плательщику не ждёт, пока кредитор вернёт деньги банку, и не требует свободного остатка на счёте кредитора. Все деньги и банковские контрольные счета здесь виртуальные.
+These are three independent processes. Crediting the payer does not wait for the creditor to repay the bank and does not require available creditor funds. All money and bank control accounts here are virtual.
 
-## Требования и источники
+## Requirements and sources
 
-- [EPC SDD Core rulebook 2025 v1.2](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC016-06%202025%20SDD%20Core%20Rulebook%20version%201.2.pdf): безусловный возврат в пределах восьми недель; заявление о неавторизованном списании — в пределах 13 месяцев.
-- [EPC reason codes v8.1](https://www.europeanpaymentscouncil.eu/document-library/guidance-documents/guidance-reason-codes-sepa-direct-debit-r-transactions): MD06 для безусловного возврата Core; MD01 для возврата неавторизованного списания.
-- [PSD2 Articles 71–73](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32015L2366): возврат неавторизованного платежа должен производиться сразу, не позднее конца следующего рабочего дня; кредитная дата валютирования не позднее первоначального списания. Доказательство авторизации — задача PSP, а запись использования инструмента сама по себе не является достаточным доказательством.
+- [EPC SDD Core rulebook 2025 v1.2](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC016-06%202025%20SDD%20Core%20Rulebook%20version%201.2.pdf): unconditional refunds within eight weeks and unauthorised debit claims within 13 months.
+- [EPC reason codes v8.1](https://www.europeanpaymentscouncil.eu/document-library/guidance-documents/guidance-reason-codes-sepa-direct-debit-r-transactions): MD06 for unconditional Core refunds and MD01 for unauthorised debit refunds.
+- [PSD2 Articles 71-73](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32015L2366): unauthorised payment refunds are immediate, no later than the end of the next business day; credit value dates must not be later than the original debit. The PSP bears the burden of proving authorisation; recorded use of an instrument alone is insufficient evidence.
 
-Это ограниченная реализация общих сценариев. Национальное право, договорные условия, исключение срока при непредоставлении информации, fraud exception с письменным уведомлением компетентного органа, расчёт процентов/компенсации и межбанковские процедуры ещё не реализованы. Нельзя заявлять полное соответствие PSD2/SEPA по результатам этих тестов.
+This implements limited common scenarios. National law, contract terms, the notification deadline exception when information was not provided, the fraud exception with written competent-authority notice, interest/compensation and interbank procedures remain incomplete. These tests do not establish full PSD2/SEPA compliance.
 
-## Как работают деньги
+## Money movements
 
-Пример: плательщик имел 100 EUR, кредитор получил 10 EUR и уже потратил их.
+Example: the payer had 100 EUR; the creditor received 10 EUR and spent it.
 
-1. Плательщик запрашивает возврат. Банк зачисляет 10 EUR: остаток плательщика снова 100 EUR. Счёт кредитора не меняется.
-2. В ledger появляются две строки с одним booking ID: `SDD_RECOVERY = -10`, счёт плательщика `+10`. Сумма равна нулю. Отрицательный знак контрольного счёта здесь — противоположная сторона клиентского зачисления; учёт не заменяет полный промышленный general ledger.
-3. `sdd_refund` хранит требование банка: amount 10, recoveredAmount 0, outstandingAmount 10. Это требование отдельно от денег на счёте кредитора.
-4. Позже независимый оператор выполняет учебное взыскание 4 EUR с кредитора, когда доступный остаток позволяет это. Ledger: кредитор `-4`, `SDD_RECOVERY = +4`. Плательщик ничего не платит; outstandingAmount становится 6.
-5. Последующие 6 EUR закрывают требование. Остаток контрольного счёта по этой операции — ноль.
+1. The payer requests a refund. The bank credits 10 EUR, restoring the payer's balance to 100 EUR without changing the creditor account.
+2. Two ledger rows share a booking ID: `SDD_RECOVERY = -10` and payer account `+10`. They sum to zero. The control account's negative sign is the opposing side of the customer credit; this is not a complete production general ledger.
+3. `sdd_refund` records a separate bank receivable: amount 10, recoveredAmount 0, outstandingAmount 10. The receivable is separate from the creditor's account funds.
+4. An independent operator later performs a simulated 4 EUR recovery when creditor availability permits. Postings: creditor `-4`, `SDD_RECOVERY = +4`. The payer is not debited; outstandingAmount becomes 6.
+5. Another 6 EUR recovery closes the receivable and returns this operation's control-account balance to zero.
 
-Для настоящего взыскания нужны договорное право на списание, внешний PSP/CSM и подтверждения расчёта. Кнопка оператора в учебном банке не предоставляет такой юридической полномочности.
+Real recovery requires contractual debit rights, an external PSP/CSM and settlement confirmation. A lab operator button does not grant legal authority.
 
-`ledger.account_id` и `ledger.bank_account` взаимоисключающие: CHECK не допускает двух контрагентов или их отсутствия. Старые строки без account_id мигрируют в `TREASURY`. `value_date` хранится отдельно от времени записи; у возврата это дата исходного списания. Выписка и camt.053 выводят эту дату. Приложение пока не рассчитывает проценты, поэтому восстановление процентов и иных финансовых последствий не подтверждено.
+`ledger.account_id` and `ledger.bank_account` are mutually exclusive: a CHECK requires exactly one. Old rows without account_id migrate to `TREASURY`. `value_date` is separate from booking time; refund value dates use the original debit date. Statements and camt.053 include it. Interest is not calculated, so restoring interest and other financial consequences is not verified.
 
-## Сроки и повторы
+## Deadlines and retries
 
-- Восемь недель: последняя допустимая дата = дата списания + 8 недель.
-- Неавторизованный SDD: последняя дата = дата списания + 13 календарных месяцев; январь/февраль и високосные годы учитываются календарным методом, а не фиксированным количеством дней.
-- Границы считаются по UTC дате, включая весь последний день. Это явная политика учебного банка; production timezone и календарь необходимо согласовать с PSP.
-- Для уже выполненного возврата повторный запрос возвращает результат без второй проводки, даже после истечения срока. Новые просроченные запросы отклоняются.
-- Уникальный payment_id в sdd_refund, блокировка payment и единая транзакция защищают параллельные запросы. Возврат, проводки, журнал события и outbox фиксируются вместе.
-- У взыскания ключ идемпотентности привязан к оператору и сумме/платежу. Смена суммы или платежа с прежним ключом — конфликт. Нельзя взыскать больше outstandingAmount или использовать уже зарезервированные средства кредитора.
+- Eight-week deadline: debit date plus 8 weeks.
+- Unauthorised SDD deadline: debit date plus 13 calendar months, accounting for month lengths and leap years rather than a fixed number of days.
+- UTC dates include the entire last day. This is an explicit lab policy; a production timezone/calendar must be agreed with the PSP.
+- Retrying an existing refund returns the result without another posting, even after the deadline. New late requests are rejected.
+- Unique payment_id in sdd_refund, payment locks and one transaction protect concurrent requests. Credit, postings, events and outbox commit together.
+- Recovery idempotency binds the operator, amount and payment. Changing amount/payment under the same key conflicts. Recovery cannot exceed outstandingAmount or consume reserved creditor funds.
 
-## Неавторизованный платёж
+## Unauthorised payment claims
 
-Клиент отправляет одно из заявлений `NO_MANDATE`, `REVOKED_MANDATE`, `OTHER_UNAUTHORISED`. Сервис сразу зачисляет деньги и создаёт дело `REFUNDED_UNDER_REVIEW`. Это заявление клиента, а не автоматически доказанное отсутствие авторизации.
+A customer alleges `NO_MANDATE`, `REVOKED_MANDATE` or `OTHER_UNAUTHORISED`. The service immediately credits the payer and opens `REFUNDED_UNDER_REVIEW`. The allegation is not automatically proven absence of authorisation.
 
-Оператор может закрыть расследование как `CONFIRMED_UNAUTHORISED` или `AUTHORISATION_EVIDENCE_FOUND`. Для второго решения нужен SHA-256 внешнего доказательства. Хеш — только ссылка на проверяемый материал; хранилище подписанных мандатов и проверка доказательства ещё отсутствуют. Решение «доказательство найдено» не списывает деньги с клиента автоматически.
+An operator closes the case as `CONFIRMED_UNAUTHORISED` or `AUTHORISATION_EVIDENCE_FOUND`. The latter requires a SHA-256 hash of external evidence. A hash only references reviewable material; signed mandate storage and evidence verification are absent. Finding evidence does not automatically debit the payer again.
 
-Нельзя рассматривать дело своего собственного платежа или платежа своего контрагента, даже имея bank.ops. Другой клиент не может открыть или читать дело плательщика. bank.agent не предоставляет доступ к денежным операциям. Для HTTP маршрутов ops обязательны bank.ops и MFA.
+An operator cannot review a payment involving their own account as either party, even with bank.ops. Another customer cannot create or read the payer's case. bank.agent does not grant monetary operation access. HTTP ops routes require bank.ops and MFA.
 
-События аудита содержат субъект/тип действия, без свободного текста с персональными данными; сам audit_log ещё не является защищённым от изменения архивом.
+Audit events record subjects/action types without free text containing PII. audit_log is not yet a tamper-resistant archive.
 
-## API и интерфейс
+## API and UI
 
-| Действие | Метод и путь |
+| Action | Method and path |
 |---|---|
-| Безусловный возврат плательщика | POST `/api/v1/payments/{id}/refund` |
-| Заявление о неавторизованном SDD | POST `/api/v1/payments/{id}/sdd-dispute` |
-| Дело плательщика | GET `/api/v1/payments/{id}/sdd-dispute` |
-| Список дел оператора | GET `/api/v1/ops/sdd-disputes?page=0` |
-| Решение расследования | POST `/api/v1/ops/sdd-disputes/{caseId}/decision` |
-| Требования банка | GET `/api/v1/ops/sdd-refunds?page=0` |
-| Учебное взыскание | POST `/api/v1/ops/sdd-refunds/{paymentId}/recoveries`, Idempotency-Key |
+| Payer unconditional refund | POST `/api/v1/payments/{id}/refund` |
+| Unauthorised SDD claim | POST `/api/v1/payments/{id}/sdd-dispute` |
+| Payer's case | GET `/api/v1/payments/{id}/sdd-dispute` |
+| Operator case list | GET `/api/v1/ops/sdd-disputes?page=0` |
+| Investigation decision | POST `/api/v1/ops/sdd-disputes/{caseId}/decision` |
+| Bank receivables | GET `/api/v1/ops/sdd-refunds?page=0` |
+| Simulated recovery | POST `/api/v1/ops/sdd-refunds/{paymentId}/recoveries`, Idempotency-Key |
 
-Примеры тел:
+Example bodies:
 
 ```json
 {"allegation":"NO_MANDATE"}
@@ -69,14 +69,14 @@
 {"amount":4.00}
 ```
 
-После входа плательщик использует вкладку **Refunds & disputes** и ID списания. Независимый оператор с bank.ops использует **Payment operations**. Клиентский UI пока не показывает список всех входящих SDD; ID можно получить через API создания списания. Создание мандата и инициирование кредитором SDD по-прежнему доступны через API.
+The signed-in payer uses **Refunds & disputes** with the collection ID. An independent bank.ops operator uses **Payment operations**. The customer UI does not yet list all incoming SDDs; obtain the ID from the collection creation API. Mandate creation and creditor collection initiation remain API operations.
 
-## Что проверяют тесты
+## Test coverage
 
-`BankIntegrationTest`: пустой/зарезервированный остаток кредитора, отдельные требования банка, двойные и конкурентные запросы, последний день окна, 13 календарных месяцев с високосным февралём, дата валютирования, частичное взыскание, отсутствие повторного взыскания, права и self-review, требование доказательства, отсутствие автоматического повторного дебета, откат всей операции при ошибке аудита.
+`BankIntegrationTest`: empty/reserved creditor funds, bank receivables, duplicate/concurrent requests, last-day deadlines, 13 calendar months with leap-year February, value dates, partial recovery, duplicate recovery protection, permissions/self-review, evidence requirements, no automatic payer re-debit and full rollback on audit failure.
 
-`HttpE2ETest`: настоящий HTTP/JWT/DB, чужой клиент, scope, MFA, валидация allegation/evidence, повторный запрос, расследование и частичное взыскание. `PostgresKafkaTest`: новые миграции, возврат, взыскание и outbox/consumer на реальных контейнерах. `SddMigrationTest`: существующие проводки до V4 и ограничения после обновления. Playwright: возврат клиента, заявление, независимое расследование и взыскание в настоящем UI/backend с mock IdP.
+`HttpE2ETest`: real HTTP/JWT/DB, other customers, scopes, MFA, allegation/evidence validation, retries, investigation and partial recovery. `PostgresKafkaTest`: migrations, refunds, recovery and outbox/consumer on real containers. `SddMigrationTest`: pre-V4 postings and post-upgrade constraints. Playwright: payer refund/claim and independent investigation/recovery against the real UI/backend with a mock IdP.
 
-`PerformanceTest`: 120 HTTP запросов, 8 работников, 12 списаний по 10 повторных попыток; половина — безусловные возвраты, половина — заявления о неавторизованном SDD. Кредитор уже потратил деньги. Проверяются p50/p95/p99, количество проводок/дел, баланс ledger и однократное зачисление. Порог p95 < 2000 ms — сигнал регрессии, не промышленный SLA; H2 и короткий тест не доказывают production capacity. Результат сохраняется в `target/sdd-performance-results.json` и артефакте CI.
+`PerformanceTest`: 120 HTTP requests, 8 workers, 12 collections with 10 attempts each; half unconditional refunds, half unauthorised claims, with creditor funds already spent. It checks p50/p95/p99, posting/case counts, ledger balance and one credit per payment. p95 < 2000 ms is a regression signal, not a production SLA; short H2 runs do not establish production capacity. Results are saved in `target/sdd-performance-results.json` and CI artifacts.
 
-Полные EPC TVS и внешняя приёмка не выполнялись. Новый reason code в pacs.004 не делает весь XML подтверждённым EPC-профилем.
+Full EPC TVS validation and external acceptance have not been performed. Adding a pacs.004 reason code does not establish a complete EPC message profile.

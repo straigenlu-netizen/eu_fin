@@ -1,31 +1,31 @@
-# eu_fin — учебный банк европейских платежей
+# eu_fin - European payments learning bank
 
-Приложение для изучения Java backend и банковского домена из вакансии. Есть личный кабинет, кабинет сотрудника, пять вымышленных клиентов, EUR-счета, перевод и списание по мандату, возвраты, журнал проводок, ISO 20022 XML и события Kafka.
+A Java backend application for studying the banking domain covered by the target job description. It includes customer and staff portals, five fictional customers, EUR accounts, credit transfers, mandate-based direct debits, refunds, a posting journal, ISO 20022 XML and Kafka events.
 
-Это учебная реализация с виртуальными деньгами. Подключения к SWIFT, TIPS, RT1 и реальным банкам отсутствуют. Валидация официальными ISO XSD не означает соответствия всем правилам SEPA или банковскую сертификацию. Полный промышленный банк существенно шире этого проекта.
+This is a learning implementation with virtual money. It has no connections to SWIFT, TIPS, RT1 or real banks. Validation against official ISO XSDs does not establish compliance with all SEPA rules or banking certification. A production bank requires substantially more than this project implements.
 
-Аудит правил и границы подтверждения: [SEPA-ISO-CONFORMANCE.md](docs/SEPA-ISO-CONFORMANCE.md).
+Assessment and evidence boundaries: [SEPA-ISO-CONFORMANCE.md](docs/SEPA-ISO-CONFORMANCE.md).
 
-## Быстрый старт с кабинетом
+## Quick start with the portals
 
-Нужны Docker Compose и Python 3. Команды выполняются из корня проекта:
+Requires Docker Compose and Python 3. Run from the repository root:
 
 ```sh
 python3 scripts/init-lab.py
 docker compose -f compose.yml -f compose.oidc.yml up --build
 ```
 
-Открыть http://localhost:8080/bank/. Identity provider доступен на http://localhost:8082. Пароли генерируются случайно в `.env`: для `alice` использовать `DEMO_ALICE_PASSWORD`, для сотрудника `agent` — `DEMO_AGENT_PASSWORD`. Остальные логины: `bob`, `carla`, `daniel`, `eva`, `operator`. При первом входе потребуется настроить OTP в приложении-аутентификаторе. `.env` содержит секреты: не публиковать и не пересылать. Keycloak `start-dev`, локальный HTTP и одиночный Kafka предназначены только для локальной лаборатории. Если запускать другой адрес, нужно согласованно изменить issuer, redirect URI и CSP.
+Open http://localhost:8080/bank/. The identity provider is at http://localhost:8082. Random passwords are generated in `.env`: use `DEMO_ALICE_PASSWORD` for `alice` and `DEMO_AGENT_PASSWORD` for staff user `agent`. Other logins: `bob`, `carla`, `daniel`, `eva`, `operator`. The first login requires OTP setup in an authenticator app. `.env` contains secrets: do not publish or forward it. Keycloak `start-dev`, local HTTP and a single Kafka broker are for the local lab only. Using another address requires consistent issuer, redirect URI and CSP changes.
 
-Первый запуск импортирует realm и создаёт пять профилей с балансом 1000 EUR. Повторный запуск не создаёт копии. Для нового пользователя выбрать регистрацию на странице входа, затем заполнить профиль в кабинете. Сотрудник должен одобрить учебную проверку личности перед открытием счёта и платежами. Реальную проверку документов и санкций этот шаг не выполняет.
+The first start imports the realm and creates five profiles with 1000 EUR each. Subsequent starts do not create duplicates. A new user registers on the login page and completes the profile in the portal. Staff must approve the simulated identity check before the customer can open an account or make payments. This step does not perform real document or sanctions checks.
 
-В учебном кабинете IBAN нового счёта вводится вручную: это инструмент эксперимента, а не промышленный процесс выдачи IBAN. Для платежа Alice → Bob указать `NL91ABNA0417164300`, имя `Bob Example`, сумму и уникальное назначение. Локальный worker моделирует screening, clearing и settlement. Стандартные и мгновенные переводы проходят внутри единого учебного ledger.
+New account IBANs are entered manually in the lab portal. This supports experiments; it is not a production IBAN allocation process. For an Alice-to-Bob payment, enter `NL91ABNA0417164300`, payee name `Bob Example`, an amount and a unique reference. The local worker simulates screening, clearing and settlement. Standard and instant transfers use a single internal learning ledger.
 
-Полный Compose-стек здесь подготовлен, но не запускался в среде разработки: Docker недоступен. PostgreSQL/Kafka, JDK 21 и браузерные тесты затем успешно выполнены в GitHub Actions. Актуальные результаты: [CI-RESULTS.md](docs/CI-RESULTS.md); первоначальный локальный [отчёт](docs/VERIFICATION.md).
+The full Compose stack is prepared but has not been started in the development environment because Docker is unavailable. PostgreSQL/Kafka, JDK 21 and browser tests subsequently passed in GitHub Actions. Current evidence: [CI-RESULTS.md](docs/CI-RESULTS.md); initial local report: [VERIFICATION.md](docs/VERIFICATION.md).
 
-## Сборка и тесты без Docker
+## Build and tests
 
-Нужны JDK 21, Maven Wrapper и доступ к Maven Central:
+Requires JDK 21, Maven Wrapper and access to Maven Central:
 
 ```sh
 ./mvnw verify
@@ -33,35 +33,36 @@ docker compose -f compose.yml -f compose.oidc.yml up --build
 ./mvnw -Pcontainers verify
 ```
 
-В Windows использовать `mvnw.cmd`. Обычный запуск исключает нагрузочный и контейнерный наборы. `performance` добавляет нагрузочный набор на H2; `containers` требует Docker и включает PostgreSQL/Kafka и нагрузочный тест. Браузерные сценарии описаны в [e2e/README.md](e2e/README.md).
+On Windows, use `mvnw.cmd`. The default run excludes performance and container suites. `performance` adds the H2 load suite; `containers` requires Docker and includes PostgreSQL/Kafka and load tests. Browser scenarios: [e2e/README.md](e2e/README.md).
 
-Для API без Keycloak: создать `.env`, загрузить переменные в свой shell, собрать `./mvnw package`, запустить `java -jar target/eu-fin-0.1.0.jar`. Пример для POSIX shell: `set -a; . ./.env; set +a`. По умолчанию это H2 в памяти: данные исчезнут при остановке. Подписать учебный JWT можно `python3 scripts/lab-token.py alice bank.pay`. Этот скрипт имитирует issuer и MFA и не является настоящей аутентификацией. Не использовать его в развёрнутом банке. Для кабинета нужен OIDC-провайдер, настроенный как в Compose.
+For API experiments without Keycloak, generate `.env`, load its variables into your shell, build with `./mvnw package`, then run `java -jar target/eu-fin-0.1.0.jar`. POSIX shell example: `set -a; . ./.env; set +a`. The default database is in-memory H2; stopping the process loses its data. Generate a lab JWT with `python3 scripts/lab-token.py alice bank.pay`. This script simulates the issuer and MFA and is not real authentication. Do not use it in a deployed bank. The portal requires an OIDC provider configured as in Compose.
 
-## Клиенты и полномочия
+## Customers and permissions
 
-| Роль | Разрешено | Ограничения |
+| Role | Allowed operations | Restrictions |
 |---|---|---|
-| Клиент | Свой профиль, контакты, счета, переводы, мандаты, согласия | Чужие счета недоступны; имя и дата рождения меняются через заявку |
-| Сотрудник `bank.agent` | Список клиентов, риск, приостановка, KYC-решение, рассмотрение исправлений | Контакты в списке маскированы; нет прямого изменения личности или баланса; нельзя одобрять себя |
-| Оператор `bank.ops` | Учебное пополнение, переходы платежа, возврат, сверка | Нужны отдельные полномочия и MFA; это роль работы с платежами |
-| TPP `bank.read` | Выписка по действующему согласию клиента | Проверяются субъект TPP, счёт, срок и отзыв согласия |
+| Customer | Own profile, contacts, accounts, transfers, mandates and consents | Other customers' accounts are inaccessible; name and date of birth changes require a request |
+| Staff `bank.agent` | Customer list, risk, suspension, KYC decisions and correction review | List contacts are masked; no direct identity or balance changes; self-review is prohibited |
+| Operator `bank.ops` | Lab funding, payment transitions, recovery and reconciliation | Separate permissions and MFA are required; this is the payment operations role |
+| TPP `bank.read` | Statements under valid customer consent | TPP subject, account, expiry and revocation are checked |
 
-Пять клиентов: Alice Demo, Bob Example, Carla Sample, Daniel Demo, Eva Example. Все данные и деньги вымышленные. Персональные профили и заявки шифруются AES-256-GCM; имена владельцев присутствуют также в операционной таблице счетов и XML-выписках — это не шифрование всей базы.
+The five customers are Alice Demo, Bob Example, Carla Sample, Daniel Demo and Eva Example. All data and money are fictional. Personal profiles and correction requests use AES-256-GCM encryption. Owner names also appear in operational account tables and XML statements; this is not whole-database encryption.
 
-Возвраты SDD, споры и отдельное взыскание: [SDD-REFUNDS.md](docs/SDD-REFUNDS.md). В кабинете добавлены вкладки Refunds & disputes и Payment operations (bank.ops).
+SDD refunds, disputes and independent recovery: [SDD-REFUNDS.md](docs/SDD-REFUNDS.md). The portal includes **Refunds & disputes** and **Payment operations** (`bank.ops`) tabs.
 
-## Что изучать дальше
+## Learning path
 
-1. [Архитектура и транзакции](docs/ARCHITECTURE.md).
-2. [Банковские операции и сообщения](docs/BANKING.md).
-3. [Безопасность и границы защиты](docs/SECURITY.md).
-4. [Соответствие требованиям вакансии](docs/JOB-MATRIX.md).
-5. [Маршрут нашего подробного разбора](docs/LEARNING.md).
-6. [Выполненные проверки](docs/VERIFICATION.md).
+1. [Architecture and transactions](docs/ARCHITECTURE.md).
+2. [Banking operations and messages](docs/BANKING.md).
+3. [Security controls and limits](docs/SECURITY.md).
+4. [Mapping to the job requirements](docs/JOB-MATRIX.md).
+5. [Detailed walkthrough plan](docs/LEARNING.md).
+6. [Verification evidence](docs/VERIFICATION.md).
 
-API описан в [OpenAPI](api/openapi.json). Исходники: `src/main/java/dev/eufin`; миграции: `src/main/resources/db/migration`; официальные XSD и контрольные суммы: `src/main/resources/iso/xsd/sources.json`.
+API: [OpenAPI](api/openapi.json). Sources: `src/main/java/dev/eufin`; migrations: `src/main/resources/db/migration`; official XSDs and checksums: `src/main/resources/iso/xsd/sources.json`.
 
-Текущая версия использует **только Java 21**: Maven compiler release 21, Docker build/runtime JDK/JRE 21, CI JDK 21. Старые отчёты Java 17 относятся к предыдущей ревизии.
+The current project uses **Java 21 only**: compiler release 21, Docker build/runtime JDK/JRE 21 and CI JDK 21. Historical Java 17 reports describe earlier revisions.
 
-Жизненный цикл мандатов и оставшиеся ограничения: [SDD-MANDATES.md](docs/SDD-MANDATES.md).
-Проверки исходного кода и условия включения CodeQL: [security/semgrep/README.md](security/semgrep/README.md).
+Mandate lifecycle and remaining gaps: [SDD-MANDATES.md](docs/SDD-MANDATES.md). Source security checks and CodeQL activation: [security/semgrep/README.md](security/semgrep/README.md).
+
+All repository documentation, interface text, comments and messages must be written in English. CI checks tracked text files for Cyrillic characters with `python3 scripts/check-english.py`. This policy concerns repository content, not customer input or supported payment data.

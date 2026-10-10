@@ -1,43 +1,45 @@
-# Защита и её границы
+# Security controls and their limits
 
-Обещание «максимальной безопасности» невозможно подтвердить одним проектом или набором тестов. Здесь реализована многоуровневая защита и явно описаны оставшиеся задачи.
+A project or test suite cannot establish a promise of maximum security. This implementation has layered controls and explicit remaining gaps.
 
-## Действующие механизмы
+## Implemented controls
 
-- JWT проверяется по подписи, issuer, audience, сроку и subject. В режиме OIDC ключи берутся из JWKS; HMAC допускается только для отдельного локального лабораторного сценария.
-- Доступ к чужому счёту, платежу и профилю проверяется на backend. Скрытие кнопки в UI не считается авторизацией. Agent и operator — отдельные роли.
-- Staff/ops требуют `amr=mfa`. Keycloak flow имеет обязательные password + OTP, AMR mapper выводит фактически выполненные методы. Подписанный claim должен выдавать доверенный issuer; сам по себе текст `mfa` не подтверждает качество IdP.
-- Профиль и предложенные исправления зашифрованы AES-256-GCM: случайный nonce, проверка целостности, subject как AAD. Перестановка ciphertext между клиентами не работает. Ключ обязателен, слабый или отсутствующий ключ блокирует запуск.
-- Сотрудник редактирует только risk tier и suspension. Контакты в списке маскированы. Изменение личности проходит заявкой с отдельным решением и аудитом; self-review запрещён.
-- Неизвестные JSON-поля запрещены: нельзя добавить роль, balance или KYC status в саморегистрацию. Валидация DTO, версии и parameterized SQL защищают границы ввода.
-- Bearer API stateless. Cookies для API не используются, поэтому CSRF отключён; при переходе на cookie-сессии архитектуру CSRF необходимо пересмотреть.
-- CSP, nosniff, запрет framing, no-referrer; UI строит DOM через textContent. Access token хранится только в памяти. PKCE verifier/state одноразово находятся в sessionStorage. Нет хранения токена в localStorage.
-- Per-subject rate limit и Retry-After, ограниченный размер карты лимитов. Это локальный process-level limiter; для нескольких экземпляров нужен общий gateway/Redis и pre-auth лимит.
-- XML parser запрещает внешние entities/DTD/schema; XML ограничен по размеру. Реальные XSD включены локально. Дополнительный общий body limit показан в nginx template, но gateway не включён в Compose.
-- mTLS профиль требует доверенный клиентский сертификат; JWT всё равно обязателен. Сертификат не подменяет ролевую авторизацию.
-- Платёжные транзакции имеют idempotency, ordered locks и balanced ledger. Контроль состояния предотвращает двойной settlement/refund.
+- JWT signature, issuer, audience, expiry and subject validation. OIDC mode uses JWKS; HMAC is reserved for the separate local lab scenario.
+- Backend ownership checks for accounts, payments and profiles. Hiding UI controls is not authorisation. Staff and operators have separate roles.
+- Staff/ops require `amr=mfa`. Keycloak requires password plus OTP; its AMR mapper reports performed methods. A trusted issuer must supply the signed claim; the text `mfa` alone does not establish IdP quality.
+- Profiles and proposed corrections use AES-256-GCM with random nonces, integrity checks and subject AAD. Moving ciphertext between customers fails. Missing or weak keys block startup.
+- Staff can edit risk tier and suspension only. List contacts are masked. Identity corrections require a request, independent decision and audit; self-review is forbidden.
+- Unknown JSON fields are rejected, preventing self-registration from assigning roles, balances or KYC status. DTO validation, versions and parameterised SQL protect input boundaries.
+- The bearer API is stateless and does not use cookies, so CSRF is disabled. Cookie sessions would require revisiting CSRF protection.
+- CSP, nosniff, framing restrictions and no-referrer. The UI creates DOM text with `textContent`. Access tokens live in memory only. One-use PKCE verifier/state values use sessionStorage; tokens are not stored in localStorage.
+- Per-subject rate limits, Retry-After and a bounded limit map. This is a process-local limiter; multiple instances need a shared gateway/Redis and pre-auth limits.
+- XML parsing prohibits external entities, DTDs and schemas and limits XML size. Official XSDs are local. The nginx template includes a general body limit, but the gateway is not part of Compose.
+- The mTLS profile requires a trusted client certificate and still requires JWT. Certificates do not replace role authorisation.
+- Payment idempotency, ordered locks and a balanced ledger. State checks prevent duplicate settlement/refund.
 
-## Модель угроз
+## Threat model
 
-| Угроза | Контроль | Проверка |
+| Threat | Control | Verification |
 |---|---|---|
-| Клиент подставляет чужой account ID | Ownership check | HTTP/domain integration |
-| Mass assignment прав или статуса | Строгий DTO и неизвестные поля | CustomerSecurityE2ETest |
-| Агент получает операторские права | Разные scopes и backend checks | HTTP role tests |
-| Подмена JWT, неверный issuer/audience, отсутствие MFA | Token validation и ApiGuard | HTTP security tests |
-| Изменение или перенос encrypted profile | GCM tag и subject AAD | ProfileCipherTest |
-| XSS через имя/адрес | textContent и CSP | Browser suite подготовлен, здесь не выполнен |
-| XXE/внешняя загрузка схемы | Hardened XML factory | ISO integration tests |
-| Повтор запроса и параллельный расход | Idempotency и row locks | Concurrent integration/load tests |
-| Повтор или старое Kafka событие | Inbox и sequence | Consumer/Streams tests |
-| Подключение без клиентского сертификата | mTLS truststore | Реальный HTTPS e2e |
+| Customer submits another account ID | Ownership check | HTTP/domain integration |
+| Mass assignment of permissions/status | Strict DTOs and unknown-field rejection | CustomerSecurityE2ETest |
+| Staff obtains operator access | Separate scopes and backend checks | HTTP role tests |
+| Forged JWT, wrong issuer/audience, missing MFA | Token validation and ApiGuard | HTTP security tests |
+| Modified or reassigned encrypted profile | GCM tag and subject AAD | ProfileCipherTest |
+| XSS through names or addresses | textContent and CSP | Browser suite; see current CI evidence |
+| XXE/external schema loading | Hardened XML factory | ISO integration tests |
+| Retries and concurrent spending | Idempotency and row locks | Concurrent integration/load tests |
+| Duplicate or stale Kafka events | Inbox and sequence | Consumer/Streams tests |
+| Connection without a client certificate | mTLS truststore | Real HTTPS e2e |
 
-## Что добавить перед промышленной эксплуатацией
+## Required before production
 
-KMS/HSM, ротацию и версионирование ключей, secret manager, TLS на всех каналах, Kafka ACL/SASL/TLS, защищённую БД и backup restore drills, централизованные лимиты, актуальные dependency scans, независимый pentest, SCA с dynamic linking, реальный VOP/KYC/AML и санкционные базы. Нужны maker-checker для рискованных действий, подтверждённый регламент доступа сотрудников, защищённый от изменений аудит, мониторинг аномалий, сроки хранения и процессы GDPR, incident response и DORA recovery tests.
+KMS/HSM, key rotation and versioning, a secret manager, TLS on every channel, Kafka ACL/SASL/TLS, a secured database, backup restore drills, shared rate limits, current dependency scans, an independent pentest, SCA with dynamic linking and real VOP/KYC/AML/sanctions sources. Risky actions need maker-checker controls, approved staff access procedures, tamper-resistant audit, anomaly monitoring, retention/GDPR processes, incident response and DORA recovery tests.
 
-Audit в лаборатории — SQL-таблица без криптографической неизменяемости. Полные данные клиента всё равно попадают в авторизованные ответы и банковские документы. AES ключ хранится в environment, нет ротации. Контакты меняются без подтверждения нового телефона/почты. Нет защиты от действий уже скомпрометированного клиента после MFA. KYC approve — учебное решение без доказательства проверки документа. Эти ограничения важны при объяснении проекта на собеседовании.
+Lab audit is an SQL table without cryptographic immutability. Authorised responses and banking documents still contain full customer data. AES keys are environment variables without rotation. Contact changes do not verify the new phone or email. MFA does not prevent abuse by an already compromised customer session. KYC approval is a simulated decision without documentary verification evidence. These limits should be explained during interviews.
 
-## AI и спецификации
+## AI and specifications
 
-Тестируемые инварианты описаны в архитектуре и API. Для AI использовать только вымышленные fixtures. Не передавать реальные документы, токены, секреты, выписки и production логи. Изменения должны иметь review, тесты и трассировку к требованию. CodeQL/Trivy настроены в CI; их успешное прохождение здесь не заявляется.
+Architecture and API documents describe testable invariants. Use fictional fixtures with AI; never supply real documents, tokens, secrets, statements or production logs. Changes need review, tests and requirement traceability.
+
+Semgrep and Trivy run in CI; current evidence is in [CI-RESULTS.md](CI-RESULTS.md). Semgrep's six local rules are a focused baseline, not equivalent to CodeQL. CodeQL runs automatically for a public repository; private repositories require enabled Code Security and `CODEQL_ENABLED=true`. Historical skipped or failed CodeQL runs are not successful security evidence.

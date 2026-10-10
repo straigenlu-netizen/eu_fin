@@ -1,20 +1,20 @@
-# План нашего подробного разбора
+# Detailed walkthrough plan
 
-Будем проходить приложение по одной законченной истории и подтверждать объяснения экспериментом. Перед каждой темой — короткая теория, затем код, тест, ошибка и исправление.
+Study one complete story at a time and confirm each explanation with an experiment. Each topic starts with short theory, then code, a test, a failure and its correction.
 
-| Встреча | Главный вопрос | Практика |
+| Session | Main question | Exercise |
 |---|---|---|
-| 1. Клиент банка | Чем login отличается от банковского профиля и KYC? | Создать клиента; попробовать открыть счёт до одобрения; проверить ограничения агента |
-| 2. Деньги и ledger | Почему нельзя хранить деньги в double? Что такое доступный остаток? | Создать резерв, проверить balance/held, найти две проводки |
-| 3. Перевод | Где заканчивается HTTP и начинается банковский lifecycle? | SCT и SCT Inst; ошибочное имя; недостаточный остаток; timeout |
-| 4. Параллельность | Почему повтор HTTP не должен списывать дважды? | Один idempotency key, изменённый payload, параллельные запросы |
-| 5. ISO 20022 | Чем pain отличается от pacs и camt? | Открыть XML, проверить XSD, попробовать неподдерживаемое поле и XXE |
-| 6. SDD и возвраты | Кто инициатор direct debit? Почему recall не отмена? | Мандат, отзыв, refund, противоположные проводки |
-| 7. Kafka и CQRS | Что произойдёт между commit и publish? | Outbox, повтор события, sequence, остановка и повтор relay |
-| 8. Безопасность | Почему JWT и MFA не заменяют ownership check? | Чужой счёт, tampered token, MFA missing, stale profile version |
-| 9. Производительность | Что говорит p95 и чего не говорит короткий H2 test? | Увеличить нагрузку, перейти на Postgres, сравнить блокировки |
-| 10. Регулирование и интервью | Где кончается демонстрация и начинается compliance? | Ответить на вопросы PSD2/DORA/GDPR/AML и объяснить пробелы |
+| 1. Bank customer | How does login differ from a banking profile and KYC? | Register; attempt account opening before approval; check staff restrictions |
+| 2. Money and ledger | Why not use double for money? What is the available balance? | Create a hold, inspect balance/held and find the two postings |
+| 3. Transfers | Where does HTTP end and the banking lifecycle begin? | SCT/SCT Inst, wrong payee name, insufficient funds and timeout |
+| 4. Concurrency | Why must an HTTP retry not debit twice? | Reuse an idempotency key, change the payload and send parallel requests |
+| 5. ISO 20022 | How do pain, pacs and camt differ? | Inspect XML, validate XSD, try unsupported fields and XXE |
+| 6. SDD and refunds | Who initiates direct debit? Why is recall not cancellation? | Mandate, revocation, refund, receivable and recovery postings |
+| 7. Kafka and CQRS | What happens between commit and publish? | Outbox, duplicate events, sequence, stop/restart the relay |
+| 8. Security | Why do JWT and MFA not replace ownership checks? | Another account, forged token, missing MFA and stale profile version |
+| 9. Performance | What does p95 say, and what does a short H2 test not establish? | Increase load, use PostgreSQL and compare locking |
+| 10. Regulation and interviews | Where does demonstration end and compliance begin? | Answer PSD2/DORA/GDPR/AML questions and explain remaining gaps |
 
-После каждой темы ты должна уметь объяснить её своими словами и найти соответствующий участок кода. Полезные контрольные вопросы: «Что откатится при ошибке?», «Что будет при повторе?», «Кто имеет право выполнить действие?», «Как это обнаружить в журнале?», «Что здесь только симулируется?».
+After each topic, explain it in your own words and locate the relevant code. Useful checkpoints: What rolls back? What happens on retry? Who may perform the action? How can it be detected in the journal? What is simulated?
 
-Первые файлы: README → V1/V2 миграции → CustomerSecurityE2ETest → BankIntegrationTest → BankService. Не нужно пытаться прочитать весь проект за один раз.
+Start with README, V1/V2 migrations, CustomerSecurityE2ETest, BankIntegrationTest and BankService. Do not try to read the whole project in one sitting.

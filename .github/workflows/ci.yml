@@ -12,6 +12,8 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      - name: Check English-only repository content
+        run: python3 scripts/check-english.py
       - run: mvn -B -Pcontainers verify
       - uses: actions/upload-artifact@v4
         if: always()
