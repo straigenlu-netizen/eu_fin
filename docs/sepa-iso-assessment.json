@@ -10,11 +10,11 @@
   "evidence": {
     "isoSchemas": 7,
     "schemaManifest": "src/main/resources/iso/xsd/sources.json",
-    "ciRun": "https://github.com/straigenlu-netizen/eu_fin/actions/runs/38048465852",
-    "testedCommit": "ddbe24ae0fa2a2b104eca6d77826b6692b683d10",
-    "ciStatus": "PARTIAL_SUCCESS_CODEQL_CONFIGURATION_FAILURE",
-    "testsDiscovered": 82,
-    "testsPassed": 81,
+    "ciRun": "https://github.com/straigenlu-netizen/eu_fin/actions/runs/38051899042",
+    "testedCommit": "c35a91e08c9ebb4388937ada1971a5c9bff18761",
+    "ciStatus": "SUCCESS_WITH_CODEQL_EXPLICITLY_SKIPPED",
+    "testsDiscovered": 89,
+    "testsPassed": 88,
     "testsSkipped": 1,
     "failures": 0,
     "errors": 0,
@@ -23,19 +23,28 @@
       "verify": "SUCCESS",
       "browser": "SUCCESS",
       "dependencies": "SUCCESS",
-      "codeql": "CONFIGURATION_FAILURE_CODE_SCANNING_DISABLED"
+      "codeql": "SKIPPED_CODE_SCANNING_NOT_ENABLED",
+      "sast": "SUCCESS_6_LOCAL_RULES"
     },
-    "sddPerformanceReport": "docs/sdd-performance-results.json"
+    "sddPerformanceReport": "docs/sdd-performance-results.json",
+    "sast": {
+      "tool": "Semgrep Community 1.180.0",
+      "rules": 6,
+      "ruleTests": "6/6 passed",
+      "filesScanned": 28,
+      "findings": 0,
+      "limitations": "Focused local rules, not equivalent to CodeQL"
+    }
   },
   "blockingGaps": [
     "EPC TVS and complete semantic profiles not validated",
     "No real PSP or CSM integration and acceptance evidence",
     "Incomplete R-transactions and investigation message flows",
     "SDD external refund settlement, statutory exceptions, compensation and full evidence validation incomplete",
-    "SDD notification, calendars and sequence lifecycle incomplete",
+    "SDD notification, calendars, CSM presentation and complete mandate/R-transaction lifecycle incomplete",
     "No production VOP or payment SCA dynamic linking",
     "Incomplete SEPA geographical reachability",
-    "Code scanning disabled for private GitHub repository"
+    "Broad CodeQL analysis remains unverified; Code Scanning disabled, focused Semgrep checks pass"
   ],
   "report": "docs/SEPA-ISO-CONFORMANCE.md",
   "implementedRequirements": [
@@ -83,6 +92,12 @@
       "id": "SDD_CONCURRENT_HTTP_LOAD_REGRESSION",
       "status": "IMPLEMENTED_AND_TESTED_LOCALLY",
       "evidence": "docs/SDD-REFUNDS.md"
+    },
+    {
+      "id": "SDD_LOCAL_MANDATE_LIFECYCLE",
+      "status": "IMPLEMENTED_AND_TESTED_LOCALLY",
+      "evidence": "docs/SDD-MANDATES.md",
+      "limitations": "API acceptance used as presentation; no real CSM or complete R-transaction retry lifecycle"
     }
   ]
 }
