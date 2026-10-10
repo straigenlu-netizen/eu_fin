@@ -11,7 +11,7 @@
 | Contract-first OpenAPI | Спецификация API и route coverage test | Нет Pact/Spring Cloud Contract consumer suites |
 | ISO 20022 pain/pacs/camt | Официальные XSD, импорт подмножества, XML export tests | Нет всех сообщений и usage guidelines сети |
 | SWIFT MT/MX | Ограниченный MT103 preview | Не CBPR+/FIN migration |
-| SEPA SCT/Inst/SDD, TIPS/RT1 | Правила учебного EUR ledger, сроки, мандат, возврат | Реальные подключения/сертификация отсутствуют |
+| SEPA SCT/Inst/SDD, TIPS/RT1 | Правила учебного EUR ledger, сроки, мандат; независимый SDD refund, 13-month claims, расследование и отдельное взыскание | Реальные подключения/сертификация отсутствуют |
 | EU regulation | Объяснение в BANKING и SECURITY | Не юридическое compliance подтверждение |
 | AI/spec-driven | Документированные инварианты, OpenAPI, тесты и ограничения AI | Нет отдельной платформы генерации/контроля AI |
 | Database/locking/migrations | SQL, транзакции, ordered locks, Flyway, Postgres container test | Postgres/Kafka test прошёл в CI; Oracle/MS SQL нет |

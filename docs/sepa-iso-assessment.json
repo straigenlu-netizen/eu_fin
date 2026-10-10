@@ -10,31 +10,79 @@
   "evidence": {
     "isoSchemas": 7,
     "schemaManifest": "src/main/resources/iso/xsd/sources.json",
-    "ciRun": "https://github.com/straigenlu-netizen/eu_fin/actions/runs/38046761126",
-    "testedCommit": "6f8bc26900769cdedec3f2333a9a4a0d953eabbd",
+    "ciRun": "https://github.com/straigenlu-netizen/eu_fin/actions/runs/38048465852",
+    "testedCommit": "ddbe24ae0fa2a2b104eca6d77826b6692b683d10",
     "ciStatus": "PARTIAL_SUCCESS_CODEQL_CONFIGURATION_FAILURE",
-    "testsDiscovered": 64,
-    "testsPassed": 63,
+    "testsDiscovered": 82,
+    "testsPassed": 81,
     "testsSkipped": 1,
     "failures": 0,
     "errors": 0,
-    "browserChecksPassed": 16,
+    "browserChecksPassed": 24,
     "jobs": {
       "verify": "SUCCESS",
       "browser": "SUCCESS",
       "dependencies": "SUCCESS",
       "codeql": "CONFIGURATION_FAILURE_CODE_SCANNING_DISABLED"
-    }
+    },
+    "sddPerformanceReport": "docs/sdd-performance-results.json"
   },
   "blockingGaps": [
     "EPC TVS and complete semantic profiles not validated",
     "No real PSP or CSM integration and acceptance evidence",
     "Incomplete R-transactions and investigation message flows",
-    "SDD unconditional and unauthorized refund procedures incomplete",
+    "SDD external refund settlement, statutory exceptions, compensation and full evidence validation incomplete",
     "SDD notification, calendars and sequence lifecycle incomplete",
     "No production VOP or payment SCA dynamic linking",
     "Incomplete SEPA geographical reachability",
     "Code scanning disabled for private GitHub repository"
   ],
-  "report": "docs/SEPA-ISO-CONFORMANCE.md"
+  "report": "docs/SEPA-ISO-CONFORMANCE.md",
+  "implementedRequirements": [
+    {
+      "id": "SDD_EIGHT_WEEK_REFUND_INDEPENDENT_OF_CREDITOR_BALANCE",
+      "status": "IMPLEMENTED_AND_TESTED_LOCALLY",
+      "evidence": "docs/SDD-REFUNDS.md"
+    },
+    {
+      "id": "SDD_UNAUTHORISED_CLAIMS_13_CALENDAR_MONTHS",
+      "status": "IMPLEMENTED_AND_TESTED_LOCALLY",
+      "evidence": "docs/SDD-REFUNDS.md"
+    },
+    {
+      "id": "IMMEDIATE_PAYER_CREDIT_SEPARATE_FROM_INVESTIGATION",
+      "status": "IMPLEMENTED_AND_TESTED_LOCALLY",
+      "evidence": "docs/SDD-REFUNDS.md"
+    },
+    {
+      "id": "RESTORED_CREDIT_VALUE_DATE",
+      "status": "IMPLEMENTED_AND_TESTED_LOCALLY",
+      "evidence": "docs/SDD-REFUNDS.md"
+    },
+    {
+      "id": "IDEMPOTENT_CONCURRENT_REFUNDS",
+      "status": "IMPLEMENTED_AND_TESTED_LOCALLY",
+      "evidence": "docs/SDD-REFUNDS.md"
+    },
+    {
+      "id": "SEPARATE_PARTIAL_IDEMPOTENT_RECOVERY",
+      "status": "IMPLEMENTED_AND_TESTED_LOCALLY",
+      "evidence": "docs/SDD-REFUNDS.md"
+    },
+    {
+      "id": "DISPUTE_SCOPE_MFA_AND_SEPARATION_OF_DUTIES",
+      "status": "IMPLEMENTED_AND_TESTED_LOCALLY",
+      "evidence": "docs/SDD-REFUNDS.md"
+    },
+    {
+      "id": "ATOMIC_REFUND_CASE_LEDGER_AUDIT_OUTBOX",
+      "status": "IMPLEMENTED_AND_TESTED_LOCALLY",
+      "evidence": "docs/SDD-REFUNDS.md"
+    },
+    {
+      "id": "SDD_CONCURRENT_HTTP_LOAD_REGRESSION",
+      "status": "IMPLEMENTED_AND_TESTED_LOCALLY",
+      "evidence": "docs/SDD-REFUNDS.md"
+    }
+  ]
 }

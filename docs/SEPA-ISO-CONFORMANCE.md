@@ -68,4 +68,4 @@ EPC перенёс планировавшееся прекращение нес�
 
 На JDK 21: `./mvnw -Pcontainers verify`; браузер: `bash e2e/run-local.sh`. Результаты конкретного коммита доступны в GitHub Actions. Наличие теста в этой таблице само по себе не означает его прохождение: окончательные результаты записываются после завершения CI.
 
-Последний успешный функциональный прогон: [Actions 38046761126](https://github.com/straigenlu-netizen/eu_fin/actions/runs/38046761126), код `6f8bc26900769cdedec3f2333a9a4a0d953eabbd`: 63 теста выполнено, 1 условный Kafka пропущен, 0 failures/errors; 16 браузерных проверок и Trivy прошли. CodeQL не подтверждён. [Машиночитаемый отчёт](sepa-iso-assessment.json).
+Последний успешный функциональный прогон: [Actions 38048465852](https://github.com/straigenlu-netizen/eu_fin/actions/runs/38048465852), код `ddbe24ae0fa2a2b104eca6d77826b6692b683d10`: 81 тест выполнен, 1 условный Kafka пропущен, 0 failures/errors; 24 браузерные проверки и Trivy прошли. CodeQL не подтверждён. [Машиночитаемый отчёт](sepa-iso-assessment.json). SDD load regression: 120 запросов / 8 работников; p95 40 ms, p99 51 ms, H2. Это не промышленный SLA.

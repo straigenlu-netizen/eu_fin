@@ -1,0 +1,15 @@
+{
+  "scope": "financial integrity and latency regression, not production capacity",
+  "durationSeconds": 0.369263381,
+  "p50Ms": 22,
+  "mix": "50% eight-week SDD refunds, 50% unauthorised SDD claims; 12 payments, 10 attempts each, empty creditor account",
+  "concurrency": 8,
+  "requestsPerSecond": 324.971297384075,
+  "p99Ms": 51,
+  "database": "H2",
+  "p95Ms": 40,
+  "samples": 120,
+  "measuredAt": "2026-10-10",
+  "testedCommit": "ddbe24ae0fa2a2b104eca6d77826b6692b683d10",
+  "ciRun": "https://github.com/straigenlu-netizen/eu_fin/actions/runs/38048465852"
+}

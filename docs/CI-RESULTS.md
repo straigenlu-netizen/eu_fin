@@ -1,3 +1,26 @@
+# Java 21 — SDD refunds, disputes and recovery
+
+Код: `ddbe24ae0fa2a2b104eca6d77826b6692b683d10`.
+[GitHub Actions](https://github.com/straigenlu-netizen/eu_fin/actions/runs/38048465852), 10 октября 2026.
+
+| Проверка | Результат |
+|---|---|
+| Maven / JDK 21 / compiler release 21 | Успешно: 82 теста обнаружено, 81 выполнено, 1 условный ExternalKafkaTest пропущен; 0 failures/errors |
+| PostgreSQL / Kafka Testcontainers | Успешно: возврат, частичное взыскание, миграции, outbox/consumer; отдельный реальный контейнерный тест |
+| Playwright / HTTP demo smoke | Успешно: 24 браузерные проверки; возврат клиента, неавторизованный SDD, независимое расследование, взыскание |
+| SDD load regression | 120 запросов / 8 работников / 12 списаний / 10 попыток на платёж; p95 40 ms, p99 51 ms; H2, короткий тест |
+| Существующая HTTP load regression / mTLS / security e2e | Успешно |
+| Trivy HIGH/CRITICAL vuln/secret/misconfig | Успешно |
+| CodeQL | Завершился configuration failure: Code scanning is not enabled for this repository. Не засчитывается как успешная проверка |
+
+Отдельно проверены: пустой или зарезервированный счёт кредитора; календарные границы 8 недель/13 месяцев; високосный февраль; дата валютирования; однократное зачисление при параллельных повторах; отдельное частичное взыскание; self-review и MFA; полное rollback при ошибке аудита; обновление существующего ledger с V3 на V4.
+
+Метрики [sdd-performance-results.json](sdd-performance-results.json) — регрессия финансовой целостности и времени ответа, не промышленная ёмкость/SLA. CI upload сохраняет результаты обоих нагрузочных тестов, JUnit/JaCoCo и браузерные скриншоты, включая кабинет оператора.
+
+**Полное соответствие SEPA и промышленная готовность не подтверждены.** Реализация: [SDD-REFUNDS.md](SDD-REFUNDS.md); ограничения: [SEPA-ISO-CONFORMANCE.md](SEPA-ISO-CONFORMANCE.md).
+
+## Предыдущие проверки
+
 # Java 21 — проверки после аудита SEPA/ISO
 
 Код: `6f8bc26900769cdedec3f2333a9a4a0d953eabbd`.
