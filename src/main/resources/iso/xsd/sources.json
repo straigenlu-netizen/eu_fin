@@ -2,36 +2,50 @@
   "pain.001.001.09": {
     "source": "https://www.iso20022.org/message/14346/download",
     "sha256": "de038b373e47b0077b1832ddd81f4b2f1eb25d35721f62da1e38b7f5a09fda24",
-    "retrieved": "2026-10-10"
+    "retrieved": "2026-10-10",
+    "storedSha256": "05440a7e84f695e7dbc6677082f43623cd7393881b76a5e8d648ae21d7d728e3",
+    "storedLineEndings": "LF"
   },
   "pain.008.001.08": {
     "source": "https://www.iso20022.org/message/14481/download",
     "sha256": "7edf4e4ce34c47a5567af6a327e22af4ed4007f715822af9f353c94ecc10f5ba",
-    "retrieved": "2026-10-10"
+    "retrieved": "2026-10-10",
+    "storedSha256": "3b2efe2239fceea22b17eb980df58c8b80db7322cf7781f8fd64ee8d17696210",
+    "storedLineEndings": "LF"
   },
   "camt.053.001.08": {
     "source": "https://www.iso20022.org/message/12736/download",
     "sha256": "338e9cb0c9989b5181802a7b773eece070d6815fc9d6483ac0579117bc24ccba",
-    "retrieved": "2026-10-10"
+    "retrieved": "2026-10-10",
+    "storedSha256": "ca0b135cc8e2dde5b2f99af6b6c514a8f29d6e7c6cf98e9ea84d247189868ff5",
+    "storedLineEndings": "LF"
   },
   "pacs.003.001.08": {
     "source": "https://www.iso20022.org/message/14101/download",
     "sha256": "bc630fdf98e8f617bbafb06913dc9226ef6c622b4a73bba28f861f16cf1eafb0",
-    "retrieved": "2026-10-10"
+    "retrieved": "2026-10-10",
+    "storedSha256": "83f573878f840c38aa7fb3b638799ad4afef2f24fdbf116636ed2e87128b4e90",
+    "storedLineEndings": "LF"
   },
   "pacs.002.001.10": {
     "source": "https://www.iso20022.org/message/14061/download",
     "sha256": "d14da6304db5178b1afc7d8ed6cc6073e6e1a143fc79d9ba66d3246d4a654e90",
-    "retrieved": "2026-10-10"
+    "retrieved": "2026-10-10",
+    "storedSha256": "2016d5989e93376a85e515ef4874eceea46fc95d35c62292cf1577be31382404",
+    "storedLineEndings": "LF"
   },
   "pacs.004.001.09": {
     "source": "https://www.iso20022.org/message/14146/download",
     "sha256": "e2b13023bed19429bd8347ed9e13d31e6dec33fa4a8ef07dd03138d5442826b9",
-    "retrieved": "2026-10-10"
+    "retrieved": "2026-10-10",
+    "storedSha256": "2491776eeee135de20edf14aa038d036dddd25fae21c7afdc8d1150e5b16f0a6",
+    "storedLineEndings": "LF"
   },
   "pacs.008.001.08": {
     "source": "https://www.iso20022.org/message/14231/download",
     "sha256": "cf048155f70cacd03f1f1dfadf66cba8752be93c249c267351782fd6adb023f7",
-    "retrieved": "2026-10-10"
+    "retrieved": "2026-10-10",
+    "storedSha256": "9bb360555d1981be8635aa3ed295abfe8b2d221d316193434114ad722107dcde",
+    "storedLineEndings": "LF"
   }
 }

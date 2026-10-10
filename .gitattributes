@@ -1,0 +1,2 @@
+# Pin XML schema byte representation for reproducible integrity checks.
+*.xsd text eol=lf

@@ -21,7 +21,7 @@ class IsoSchemaIntegrityTest {
         try (var xsd = getClass().getResourceAsStream("/iso/xsd/" + message + ".xsd")) {
           assertThat(xsd).as(message).isNotNull();
           String digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(xsd.readAllBytes()));
-          assertThat(digest).as(message).isEqualTo(source.get("sha256").asText());
+          assertThat(digest).as(message).isEqualTo(source.get("storedSha256").asText());
         }
       }
     }
