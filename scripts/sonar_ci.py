@@ -46,7 +46,7 @@ def bootstrap():
         time.sleep(3)
     else:
         raise RuntimeError("SonarQube did not become ready within five minutes")
-    password = secrets.token_urlsafe(32)
+    password = "Aa1!" + secrets.token_urlsafe(32)
     # Default credentials belong only to the new loopback-only CI container.
     request("/api/users/change_password", {"login": "admin", "previousPassword": "admin", "password": password}, "admin:admin")
     credentials = "admin:" + password
