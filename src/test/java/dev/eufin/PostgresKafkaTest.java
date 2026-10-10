@@ -88,5 +88,20 @@ class PostgresKafkaTest {
     assertThat(bank.sddRefunds(ops, 0).get(0).outstandingAmount()).isEqualByComparingTo("6");
     assertThat(relay.relay()).isEqualTo(1);
 
+    String oneOff = bank.mandate(alice, new NewMandate(a.id(), b.id(), java.time.LocalDate.of(2030, 1, 1),
+        new BigDecimal("20"), "PG-ONE-OFF", "DE98ZZZ09999999999", java.time.LocalDate.of(2026, 1, 1), "OOFF"));
+    Initiate oneOffRequest = new Initiate(a.id(), b.id(), new BigDecimal("10"), "SDD_CORE", "PG-OOFF", "Bob", oneOff);
+    var pending = bank.initiate(bob, "pg-one-off", oneOffRequest);
+    assertThatThrownBy(() -> bank.initiate(bob, "pg-duplicate", oneOffRequest)).hasMessage("MANDATE_ALREADY_USED");
+    bank.transition(ops, pending.id(), "SCREEN");
+    bank.transition(ops, pending.id(), "CLEAR");
+    bank.revokeMandate(alice, oneOff);
+    assertThat(bank.transition(ops, pending.id(), "SETTLE").status()).isEqualTo("REJECTED");
+    assertThat(bank.account(alice, a.id()).held()).isZero();
+    assertThat(bank.account(alice, a.id()).balance()).isEqualByComparingTo("90");
+    assertThat(relay.relay()).isEqualTo(6);
+    await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+        assertThat(views.findById(pending.id()).orElseThrow().status).isEqualTo("REJECTED"));
+
   }
 }
